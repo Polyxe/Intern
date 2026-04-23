@@ -25,6 +25,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Keep styling in Tailwind utility classes and theme tokens from [src/app/globals.css](src/app/globals.css). This repo uses Tailwind v4 CSS imports and CSS variables, not a legacy `tailwind.config.js` file.
 - Prefer built-in Next.js, React, Prisma, browser, and existing repo utilities over adding packages. Add a new dependency only when the requirement cannot be handled cleanly with the current stack, and keep the addition narrowly scoped.
 
+## Visual Theme
+
+- Base the application chrome on the internship form reference: a soft lavender-to-violet navigation bar, warm orange primary actions, and light neutral page surfaces.
+- Keep the overall feel academic and calm rather than dark or high-contrast: use off-white or misty gray backgrounds with subtle lilac tinting.
+- Use orange only for high-priority actions and small accent moments; avoid turning the full page into an orange-heavy interface.
+- Prefer charcoal or deep slate for text, with violet reserved for section accents, pills, and supporting emphasis.
+- Surfaces should feel soft and slightly elevated: rounded corners, low-contrast borders, and restrained shadows instead of sharp black outlines.
+- For unauthenticated states, keep the header right side empty instead of showing placeholder user details.
+
 ## Key Files
 
 - [src/app/layout.tsx](src/app/layout.tsx): global metadata, font variables, and root HTML/body structure.

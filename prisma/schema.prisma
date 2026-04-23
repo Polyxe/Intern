@@ -12,10 +12,76 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  Student
+  Admin
+  Superadmin
+}
+
+enum InternshipApplicationApprovalStatus {
+  Pending
+  Approved
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String                 @id @default(cuid())
+  title                String
+  firstname            String
+  lastname             String
+  sex                  String?
+  birthDate            DateTime?
+  address              String?
+  institution          String?
+  email                String                 @unique
+  password             String
+  role                 UserRole               @default(Student)
+  profileImagePath     String?
+  application          InternshipApplication?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+}
+
+model InternshipApplication {
+  id                           String                               @id @default(cuid())
+  userId                       String                               @unique
+  studentId                    String
+  phoneNumber                  String
+  faculty                      String
+  program                      String
+  yearLevel                    String
+  internshipPosition           String
+  companyName                  String
+  companyAddress               String
+  guidingProfessorFirstname    String?
+  guidingProfessorLastname     String?
+  guidingProfessorPhoneNumber  String?
+  companySupervisorName        String
+  companySupervisorRole        String
+  companySupervisorEmail       String
+  companySupervisorPhoneNumber String
+  internshipStartDate          DateTime
+  internshipEndDate            DateTime
+  emergencyContactName         String
+  emergencyContactRelationship String
+  emergencyContactPhoneNumber  String
+  notes                        String?
+  approvalStatus               InternshipApplicationApprovalStatus  @default(Pending)
+  approvedAt                   DateTime?
+  attachments                  InternshipApplicationAttachment[]
+  createdAt                    DateTime                             @default(now())
+  updatedAt                    DateTime                             @updatedAt
+  user                         User                                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InternshipApplicationAttachment {
+  id            String                 @id @default(cuid())
+  applicationId String
+  fileName      String
+  filePath      String
+  mimeType      String
+  fileSize      Int
+  createdAt     DateTime               @default(now())
+  application   InternshipApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
 }

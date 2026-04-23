@@ -1,2 +1,2 @@
 [x] Feature 000: Setup Database
-[ ] Feature 001: Implement Auth
+[x] Feature 001: Implement CMU entra ID OAUTH: with the variable in the .env file, implement the OAUTH accordingly, and determine the CALLBACK_URL so my professor can generate the OAuth accordingly. 

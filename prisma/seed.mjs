@@ -1,0 +1,63 @@
+import "dotenv/config";
+
+import { randomBytes, scryptSync } from "node:crypto";
+
+import pg from "pg";
+
+const { Client } = pg;
+const SCRYPT_KEY_LENGTH = 64;
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, SCRYPT_KEY_LENGTH).toString("hex");
+
+  return `${salt}:${hash}`;
+}
+
+async function main() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not set.");
+  }
+
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+
+  await client.connect();
+
+  try {
+    await client.query(
+      `
+        INSERT INTO "User" ("id", "title", "firstname", "lastname", "email", "password", "role", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6::"UserRole", NOW(), NOW())
+        ON CONFLICT ("email")
+        DO UPDATE SET
+          "title" = EXCLUDED."title",
+          "firstname" = EXCLUDED."firstname",
+          "lastname" = EXCLUDED."lastname",
+          "password" = EXCLUDED."password",
+          "role" = EXCLUDED."role",
+          "updatedAt" = NOW()
+      `,
+      [
+        "คุณ",
+        "Nupong",
+        "Superadmin",
+        normalizeEmail("nupong.pr@cmu.ac.th"),
+        hashPassword("admin123"),
+        "Superadmin",
+      ],
+    );
+
+    console.log("Seeded superadmin user.");
+  } finally {
+    await client.end();
+  }
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -41,6 +41,35 @@ npm run db:studio
 
 The starter schema currently defines a `User` model and generates the client into `src/generated/prisma`.
 
+## CMU Entra ID OAuth
+
+The login page now supports CMU Entra ID OAuth using the existing variables in `.env`:
+
+- `AUTH_URL`
+- `TOKEN_URL`
+- `CLIENT_ID`
+- `CLIENT_SECRET`
+- `SCOPE`
+- `BASICINFO_URL`
+- `CALLBACK_URL` (optional but recommended)
+- `LOGOUT_URL` (optional, used after CMU logout and returned to the app home page)
+
+The callback route is `/intern/api/auth/callback`.
+
+If `CALLBACK_URL` is left blank, the app derives it from the current request origin using that path. For local development, register:
+
+```text
+http://localhost:3000/intern/api/auth/callback
+```
+
+For production, register the deployed origin with the same path, for example `https://your-domain.example/intern/api/auth/callback`.
+
+For CMU logout, point `LOGOUT_URL` at the Microsoft logout endpoint. The app will align `post_logout_redirect_uri` to the current app origin and `/`, so local development returns to:
+
+```text
+http://localhost:3000/
+```
+
 ## Learn More
 
 To learn more about the stack in this repository:
