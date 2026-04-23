@@ -7,15 +7,18 @@ import { internshipApplicationSelect } from "@/lib/internship-application";
 import { prisma } from "@/lib/prisma";
 import {
   canAccessUserManagement,
+  canManagerDeleteManagedAccount,
   canManagerEditManagedAccount,
   canManagerEditUser,
   canManagerViewUser,
   getDisplayName,
   roleLabels,
+  USER_ROLES,
 } from "@/lib/user-management";
 
 import { ApplicationReviewForm } from "../../application-review-form";
 import { AccountDetailsForm } from "../../account-details-form";
+import { DeleteManagedAccountForm } from "../../delete-managed-account-form";
 import { StudentDetailsForm } from "../../student-details-form";
 
 type ManageUserEditPageProps = {
@@ -63,6 +66,7 @@ export default async function ManageUserEditPage({ params }: ManageUserEditPageP
 
   const canEditStudent = canManagerEditUser(currentUser.role, managedUser.role);
   const canEditAccount = canManagerEditManagedAccount(currentUser.role, managedUser.role, { isSelf });
+  const canDeleteAccount = canManagerDeleteManagedAccount(currentUser.role, managedUser.role, { isSelf });
 
   if (!canEditAccount) {
     redirect(`/intern/manage-users/${userId}`);
@@ -104,7 +108,16 @@ export default async function ManageUserEditPage({ params }: ManageUserEditPageP
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
-            {canEditStudent ? <StudentDetailsForm user={managedUser} /> : <AccountDetailsForm user={managedUser} />}
+            {canEditStudent ? (
+              <StudentDetailsForm user={managedUser} canEditEmail />
+            ) : (
+              <AccountDetailsForm
+                user={managedUser}
+                canEditEmail={currentUser.role === USER_ROLES.Superadmin || isSelf}
+                canEditPassword={isSelf}
+                canEditProfileImage={isSelf}
+              />
+            )}
           </div>
 
           <aside className="space-y-6">
@@ -118,6 +131,8 @@ export default async function ManageUserEditPage({ params }: ManageUserEditPageP
                 </p>
               </div>
             </section>
+
+            {canDeleteAccount ? <DeleteManagedAccountForm userId={managedUser.id} /> : null}
 
             {managedUser.application && canEditStudent ? (
               <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">

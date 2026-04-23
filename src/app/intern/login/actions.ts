@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail, verifyPassword } from "@/lib/password";
 import { AUTH_PROVIDERS, createSession } from "@/lib/session";
-import { getPostLoginPath } from "@/lib/user-management";
+import { getPostLoginPathForUser } from "@/lib/user-management";
 
 type SignInState = {
   error: string;
@@ -29,6 +29,7 @@ export async function signIn(_: SignInState, formData: FormData): Promise<SignIn
       id: true,
       password: true,
       role: true,
+      acceptedTermsAt: true,
     },
   });
 
@@ -39,5 +40,5 @@ export async function signIn(_: SignInState, formData: FormData): Promise<SignIn
   }
 
   await createSession(user.id, AUTH_PROVIDERS.password);
-  redirect(getPostLoginPath(user.role));
+  redirect(await getPostLoginPathForUser(user));
 }

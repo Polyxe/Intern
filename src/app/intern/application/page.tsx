@@ -10,7 +10,7 @@ import {
   internshipStatusMeta,
 } from "@/lib/internship-application";
 import { prisma } from "@/lib/prisma";
-import { getPostLoginPath, USER_ROLES } from "@/lib/user-management";
+import { getPostLoginPath, requiresStudentTermsAcceptance, USER_ROLES } from "@/lib/user-management";
 
 export default async function InternshipApplicationPage() {
   const currentUser = await getCurrentUser();
@@ -21,6 +21,10 @@ export default async function InternshipApplicationPage() {
 
   if (currentUser.role !== USER_ROLES.Student) {
     redirect(getPostLoginPath(currentUser.role));
+  }
+
+  if (requiresStudentTermsAcceptance(currentUser)) {
+    redirect("/intern/terms");
   }
 
   const application = await prisma.internshipApplication.findUnique({

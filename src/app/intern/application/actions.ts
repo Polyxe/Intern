@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import {
   canStudentEditApplication,
@@ -117,6 +118,10 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function hasStudentEmailDomain(email: string) {
+  return email.trim().toLowerCase().endsWith("@cmu.ac.th");
+}
+
 export async function saveInternshipApplication(
   _: InternshipApplicationFormState,
   formData: FormData,
@@ -126,6 +131,14 @@ export async function saveInternshipApplication(
 
   if (!currentUser || currentUser.role !== USER_ROLES.Student) {
     return createState(values, "เฉพาะบัญชีนักศึกษาเท่านั้นที่ส่งแบบฟอร์มฝึกงานได้");
+  }
+
+  if (!currentUser.acceptedTermsAt) {
+    return createState(values, "กรุณายอมรับข้อตกลงการใช้งานก่อนกรอกแบบฟอร์มฝึกงาน");
+  }
+
+  if (!hasStudentEmailDomain(currentUser.email)) {
+    return createState(values, "อีเมลนักศึกษาต้องเป็นโดเมน @cmu.ac.th กรุณาติดต่อผู้ดูแลระบบเพื่อแก้ไขข้อมูลบัญชี");
   }
 
   const profilePhoto = getFileValue(formData, "profilePhoto");
@@ -194,6 +207,7 @@ export async function saveInternshipApplication(
           approvalStatus: true,
           internshipEndDate: true,
           approvedAt: true,
+          editedAfterApprovalAt: true,
           attachments: {
             select: {
               id: true,
@@ -263,6 +277,11 @@ export async function saveInternshipApplication(
     }
 
     const oldProfileImagePath = existingUser?.profileImagePath ?? null;
+    const editedAfterApprovalAt =
+      existingApplication?.approvalStatus &&
+      existingApplication.approvalStatus !== INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
+        ? new Date()
+        : existingApplication?.editedAfterApprovalAt ?? null;
 
     await prisma.$transaction(async (transaction) => {
       await transaction.user.update({
@@ -305,6 +324,7 @@ export async function saveInternshipApplication(
           notes: values.notes || null,
           approvalStatus: INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending,
           approvedAt: null,
+          editedAfterApprovalAt,
         },
         create: {
           userId: currentUser.id,
@@ -330,6 +350,7 @@ export async function saveInternshipApplication(
           emergencyContactPhoneNumber: values.emergencyContactPhoneNumber,
           notes: values.notes || null,
           approvalStatus: INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending,
+          editedAfterApprovalAt: null,
         },
         select: {
           id: true,
@@ -363,13 +384,7 @@ export async function saveInternshipApplication(
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${currentUser.id}`);
 
-  return createState(
-    values,
-    "",
-    existingApplication && existingApplication.approvalStatus !== INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
-      ? "บันทึกการแก้ไขเรียบร้อยแล้ว แบบฟอร์มถูกส่งกลับไปสถานะ Pending เพื่อรออนุมัติใหม่"
-      : "บันทึกแบบฟอร์มฝึกงานเรียบร้อยแล้ว",
-  );
+  redirect("/intern/profile");
 }
 
 export async function deleteStudentAttachment(
@@ -381,6 +396,12 @@ export async function deleteStudentAttachment(
   if (!currentUser || currentUser.role !== USER_ROLES.Student) {
     return {
       error: "เฉพาะบัญชีนักศึกษาเท่านั้นที่ลบไฟล์ได้",
+    };
+  }
+
+  if (!currentUser.acceptedTermsAt) {
+    return {
+      error: "กรุณายอมรับข้อตกลงการใช้งานก่อนจัดการไฟล์แนบ",
     };
   }
 
@@ -402,6 +423,7 @@ export async function deleteStudentAttachment(
           userId: true,
           approvalStatus: true,
           internshipEndDate: true,
+          editedAfterApprovalAt: true,
         },
       },
     },
@@ -419,14 +441,34 @@ export async function deleteStudentAttachment(
     };
   }
 
-  await prisma.internshipApplicationAttachment.delete({
-    where: { id: attachmentId },
+  await prisma.$transaction(async (transaction) => {
+    await transaction.internshipApplicationAttachment.delete({
+      where: { id: attachmentId },
+    });
+
+    await transaction.internshipApplication.update({
+      where: { userId: currentUser.id },
+      data: {
+        approvalStatus:
+          attachment.application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
+            ? attachment.application.approvalStatus
+            : INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending,
+        approvedAt:
+          attachment.application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending ? undefined : null,
+        editedAfterApprovalAt:
+          attachment.application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
+            ? attachment.application.editedAfterApprovalAt ?? null
+            : new Date(),
+      },
+    });
   });
 
   await deleteStoredFiles([attachment.filePath]);
 
   revalidatePath("/intern/application");
   revalidatePath("/intern/profile");
+  revalidatePath("/intern/manage-users");
+  revalidatePath(`/intern/manage-users/${currentUser.id}`);
 
   return {
     error: "",

@@ -12,13 +12,17 @@ import {
   internshipStatusMeta,
 } from "@/lib/internship-application";
 import { prisma } from "@/lib/prisma";
-import { canAccessUserManagement, getDisplayName } from "@/lib/user-management";
+import { canAccessUserManagement, getDisplayName, requiresStudentTermsAcceptance } from "@/lib/user-management";
 
 export default async function InternProfilePage() {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
     redirect("/intern/login");
+  }
+
+  if (requiresStudentTermsAcceptance(currentUser)) {
+    redirect("/intern/terms");
   }
 
   const canManageUsers = canAccessUserManagement(currentUser.role);
@@ -30,6 +34,11 @@ export default async function InternProfilePage() {
           select: internshipApplicationSelect,
         })
       : null;
+
+  if (isStudent && !application) {
+    redirect("/intern/application");
+  }
+
   const applicationStatus = application ? getInternshipStatus(application) : null;
   const applicationStatusMeta = applicationStatus ? internshipStatusMeta[applicationStatus] : null;
   const canEditApplication = application ? canStudentEditApplication(application) : true;

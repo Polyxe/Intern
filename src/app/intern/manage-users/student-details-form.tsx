@@ -21,6 +21,7 @@ type StudentDetailsFormProps = {
     email: string;
     application: InternshipApplicationRecord | null;
   };
+  canEditEmail: boolean;
 };
 
 const initialState: ManageUsersState = {
@@ -92,7 +93,7 @@ function Section({
   );
 }
 
-export function StudentDetailsForm({ user }: StudentDetailsFormProps) {
+export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormProps) {
   const [state, formAction] = useActionState(updateManagedStudentDetails, initialState);
   const application = user.application;
 
@@ -102,7 +103,7 @@ export function StudentDetailsForm({ user }: StudentDetailsFormProps) {
 
       <Section
         title="ข้อมูลส่วนตัว"
-        description="ผู้ดูแลระบบสามารถแก้ไขข้อมูลโปรไฟล์ของนักศึกษาได้จากส่วนนี้ โดยอีเมลและรหัสผ่านเป็นข้อมูลแบบอ่านอย่างเดียว"
+        description="ผู้ดูแลระบบสามารถแก้ไขข้อมูลโปรไฟล์ของนักศึกษาได้จากส่วนนี้ โดยรหัสผ่านเป็นข้อมูลแบบอ่านอย่างเดียว"
       >
         <Field label="คำนำหน้า" htmlFor="title">
           <input id="title" name="title" type="text" defaultValue={user.title} className={inputClassName} />
@@ -127,7 +128,15 @@ export function StudentDetailsForm({ user }: StudentDetailsFormProps) {
           <input id="birthDate" name="birthDate" type="date" defaultValue={user.birthDate ? formatDateForInput(user.birthDate) : undefined} className={inputClassName} />
         </Field>
         <Field label="อีเมล" htmlFor="email">
-          <input id="email" type="email" value={user.email} readOnly className={`${inputClassName} bg-slate-50 text-slate-500`} />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            defaultValue={user.email}
+            readOnly={!canEditEmail}
+            className={canEditEmail ? inputClassName : `${inputClassName} bg-slate-50 text-slate-500`}
+            required
+          />
         </Field>
         <Field label="รหัสผ่าน" htmlFor="password">
           <input id="password" type="password" value="********" readOnly className={`${inputClassName} bg-slate-50 text-slate-500`} />

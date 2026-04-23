@@ -1,18 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
+import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
 import { INTERNSHIP_APPLICATION_APPROVAL_STATUSES, parseDateInput } from "@/lib/internship-application";
 import { hashPassword, normalizeEmail } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import {
+  USER_ROLES,
   canAccessUserManagement,
+  canManagerDeleteManagedAccount,
   canManagerEditManagedAccount,
   canManagerEditUser,
   canManagerViewUser,
   getAssignableRoles,
 } from "@/lib/user-management";
+
+const MAX_PROFILE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_PROFILE_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
 
 export type ManageUsersState = {
   error: string;
@@ -132,6 +139,7 @@ export async function updateManagedStudentDetails(
   const birthDateValue = String(formData.get("birthDate") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
   const institution = String(formData.get("institution") ?? "").trim();
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
   const studentId = String(formData.get("studentId") ?? "").trim();
   const phoneNumber = String(formData.get("phoneNumber") ?? "").trim();
   const faculty = String(formData.get("faculty") ?? "").trim();
@@ -172,6 +180,7 @@ export async function updateManagedStudentDetails(
     where: { id: userId },
     select: {
       id: true,
+      email: true,
       role: true,
       application: {
         select: {
@@ -194,6 +203,37 @@ export async function updateManagedStudentDetails(
       error: "แก้ไขข้อมูลได้เฉพาะบัญชีนักศึกษา",
       success: "",
     };
+  }
+
+  const canEditEmail = true;
+  const nextEmail = canEditEmail ? email : targetUser.email;
+
+  if (!nextEmail) {
+    return {
+      error: "กรุณาระบุอีเมลของผู้ใช้",
+      success: "",
+    };
+  }
+
+  if (!isValidEmail(nextEmail)) {
+    return {
+      error: "รูปแบบอีเมลไม่ถูกต้อง",
+      success: "",
+    };
+  }
+
+  if (nextEmail !== targetUser.email) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: nextEmail },
+      select: { id: true },
+    });
+
+    if (existingUser && existingUser.id !== userId) {
+      return {
+        error: "อีเมลนี้ถูกใช้งานแล้ว",
+        success: "",
+      };
+    }
   }
 
   const birthDate = birthDateValue ? parseDateInput(birthDateValue) : null;
@@ -283,6 +323,7 @@ export async function updateManagedStudentDetails(
         birthDate,
         address: address || null,
         institution: institution || null,
+        email: nextEmail,
       },
     });
 
@@ -373,6 +414,10 @@ export async function updateManagedAccountDetails(
   const birthDateValue = String(formData.get("birthDate") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
   const institution = String(formData.get("institution") ?? "").trim();
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  const password = String(formData.get("password") ?? "");
+  const profilePhotoEntry = formData.get("profilePhoto");
+  const profilePhoto = profilePhotoEntry instanceof File && profilePhotoEntry.size > 0 ? profilePhotoEntry : null;
 
   if (!userId) {
     return {
@@ -392,6 +437,8 @@ export async function updateManagedAccountDetails(
     where: { id: userId },
     select: {
       id: true,
+      email: true,
+      profileImagePath: true,
       role: true,
     },
   });
@@ -411,6 +458,73 @@ export async function updateManagedAccountDetails(
     };
   }
 
+  const canEditEmail = currentUser.role === USER_ROLES.Superadmin || isSelf;
+  const canEditPassword = isSelf;
+  const nextEmail = canEditEmail ? email : targetUser.email;
+
+  if (!nextEmail) {
+    return {
+      error: "กรุณาระบุอีเมลของผู้ใช้",
+      success: "",
+    };
+  }
+
+  if (!isValidEmail(nextEmail)) {
+    return {
+      error: "รูปแบบอีเมลไม่ถูกต้อง",
+      success: "",
+    };
+  }
+
+  if (password && !canEditPassword) {
+    return {
+      error: "จัดการรหัสผ่านได้เฉพาะบัญชีของคุณเอง",
+      success: "",
+    };
+  }
+
+  if (password && password.length < 8) {
+    return {
+      error: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+      success: "",
+    };
+  }
+
+  if (profilePhoto && !isSelf) {
+    return {
+      error: "อัปเดตรูปโปรไฟล์ได้เฉพาะบัญชีของคุณเอง",
+      success: "",
+    };
+  }
+
+  if (profilePhoto && !ALLOWED_PROFILE_IMAGE_MIME_TYPES.has(profilePhoto.type)) {
+    return {
+      error: "รูปโปรไฟล์ต้องเป็นไฟล์ PNG หรือ JPG เท่านั้น",
+      success: "",
+    };
+  }
+
+  if (profilePhoto && profilePhoto.size > MAX_PROFILE_IMAGE_SIZE_BYTES) {
+    return {
+      error: "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB",
+      success: "",
+    };
+  }
+
+  if (nextEmail !== targetUser.email) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: nextEmail },
+      select: { id: true },
+    });
+
+    if (existingUser && existingUser.id !== userId) {
+      return {
+        error: "อีเมลนี้ถูกใช้งานแล้ว",
+        success: "",
+      };
+    }
+  }
+
   const birthDate = birthDateValue ? parseDateInput(birthDateValue) : null;
 
   if (birthDateValue && !birthDate) {
@@ -420,18 +534,44 @@ export async function updateManagedAccountDetails(
     };
   }
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      title: title || "คุณ",
-      firstname,
-      lastname,
-      sex: sex || null,
-      birthDate,
-      address: address || null,
-      institution: institution || null,
-    },
-  });
+  const newFilePaths: string[] = [];
+
+  try {
+    const savedProfilePhoto = profilePhoto
+      ? await saveUploadedFile(profilePhoto, `profile-photos/${currentUser.id}`)
+      : null;
+
+    if (savedProfilePhoto) {
+      newFilePaths.push(savedProfilePhoto.filePath);
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        title: title || "คุณ",
+        firstname,
+        lastname,
+        sex: sex || null,
+        birthDate,
+        address: address || null,
+        institution: institution || null,
+        email: nextEmail,
+        password: password ? hashPassword(password) : undefined,
+        ...(savedProfilePhoto ? { profileImagePath: savedProfilePhoto.filePath } : {}),
+      },
+    });
+
+    if (savedProfilePhoto && targetUser.profileImagePath) {
+      await deleteStoredFiles([targetUser.profileImagePath]);
+    }
+  } catch {
+    await deleteStoredFiles(newFilePaths);
+
+    return {
+      error: "ไม่สามารถบันทึกรูปโปรไฟล์ได้ กรุณาลองใหม่อีกครั้ง",
+      success: "",
+    };
+  }
 
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${userId}`);
@@ -442,6 +582,76 @@ export async function updateManagedAccountDetails(
     error: "",
     success: "อัปเดตข้อมูลบัญชีเรียบร้อยแล้ว",
   };
+}
+
+export async function deleteManagedAccount(
+  _: ManageUsersState,
+  formData: FormData,
+): Promise<ManageUsersState> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser || !canAccessUserManagement(currentUser.role)) {
+    return {
+      error: "คุณไม่มีสิทธิ์ลบบัญชีผู้ใช้",
+      success: "",
+    };
+  }
+
+  const userId = String(formData.get("userId") ?? "");
+
+  if (!userId) {
+    return {
+      error: "ไม่พบบัญชีผู้ใช้ที่ต้องการลบ",
+      success: "",
+    };
+  }
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      role: true,
+      profileImagePath: true,
+      application: {
+        select: {
+          attachments: {
+            select: {
+              filePath: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  const isSelf = targetUser?.id === currentUser.id;
+
+  if (!targetUser || !canManagerViewUser(currentUser.role, targetUser.role, { isSelf })) {
+    return {
+      error: "ไม่พบบัญชีผู้ใช้ที่ต้องการลบ",
+      success: "",
+    };
+  }
+
+  if (!canManagerDeleteManagedAccount(currentUser.role, targetUser.role, { isSelf })) {
+    return {
+      error: "บัญชีนี้ยังไม่เปิดให้ลบจากแดชบอร์ด",
+      success: "",
+    };
+  }
+
+  const filePaths = [
+    targetUser.profileImagePath,
+    ...(targetUser.application?.attachments.map((attachment) => attachment.filePath) ?? []),
+  ].filter((value): value is string => Boolean(value));
+
+  await prisma.user.delete({
+    where: { id: userId },
+  });
+
+  await deleteStoredFiles(filePaths);
+
+  revalidatePath("/intern/manage-users");
+  redirect("/intern/manage-users");
 }
 
 export async function updateManagedApplicationApproval(
@@ -520,6 +730,7 @@ export async function updateManagedApplicationApproval(
         requestedApprovalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Approved
           ? targetUser.application.approvedAt ?? new Date()
           : null,
+      editedAfterApprovalAt: null,
     },
   });
 

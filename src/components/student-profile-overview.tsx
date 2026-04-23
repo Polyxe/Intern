@@ -4,6 +4,7 @@ import {
   getInternshipStatus,
   internshipStatusMeta,
   type InternshipApplicationRecord,
+  wasEditedAfterApproval,
 } from "@/lib/internship-application";
 import { normalizePublicUploadPath } from "@/lib/public-paths";
 import { roleLabels, type UserRole } from "@/lib/user-management";
@@ -42,6 +43,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 export function StudentProfileOverview({ heading, description, user, application }: StudentProfileOverviewProps) {
   const status = application ? getInternshipStatus(application) : null;
   const statusMeta = status ? internshipStatusMeta[status] : null;
+  const showsReapprovalNotice = wasEditedAfterApproval(application);
 
   return (
     <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
@@ -71,6 +73,14 @@ export function StudentProfileOverview({ heading, description, user, application
           </div>
         ) : null}
       </div>
+
+      {showsReapprovalNotice ? (
+        <div className="mt-6 rounded-[1.5rem] border border-orange-200 bg-orange-50/80 p-5 text-sm leading-7 text-orange-900 shadow-sm">
+          แบบฟอร์มนี้ถูกแก้ไขหลังจากได้รับการอนุมัติเมื่อ{" "}
+          {application?.editedAfterApprovalAt ? formatDateForDisplay(application.editedAfterApprovalAt) : "ล่าสุด"},
+          ขณะนี้จึงอยู่ระหว่างรอผู้ดูแลระบบตรวจสอบการแก้ไขรอบใหม่
+        </div>
+      ) : null}
 
       <div className="mt-8 grid gap-6 xl:grid-cols-3">
         <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(247,242,252,0.95))] p-6">

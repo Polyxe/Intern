@@ -7,7 +7,7 @@ import { LoginForm } from "./login-form";
 
 import { getCurrentUser } from "@/lib/auth";
 import { getCmuOAuthCallbackUrl, isCmuOAuthEnabled } from "@/lib/cmu-oauth";
-import { getPostLoginPath } from "@/lib/user-management";
+import { getPostLoginPathForUser } from "@/lib/user-management";
 
 const oauthMessages: Record<string, string> = {
   cancelled: "การเข้าสู่ระบบด้วย CMU Entra ID ถูกยกเลิก กรุณาลองใหม่อีกครั้ง",
@@ -35,7 +35,7 @@ export default async function InternLoginPage({ searchParams }: InternLoginPageP
   const callbackHint = getCmuOAuthCallbackUrl(host ? `${protocol}://${host}` : undefined);
 
   if (currentUser) {
-    redirect(getPostLoginPath(currentUser.role));
+    redirect(await getPostLoginPathForUser(currentUser));
   }
 
   return (

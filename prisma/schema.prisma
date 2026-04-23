@@ -36,6 +36,7 @@ model User {
   password             String
   role                 UserRole               @default(Student)
   profileImagePath     String?
+  acceptedTermsAt      DateTime?
   application          InternshipApplication?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
@@ -67,6 +68,7 @@ model InternshipApplication {
   notes                        String?
   approvalStatus               InternshipApplicationApprovalStatus  @default(Pending)
   approvedAt                   DateTime?
+  editedAfterApprovalAt        DateTime?
   attachments                  InternshipApplicationAttachment[]
   createdAt                    DateTime                             @default(now())
   updatedAt                    DateTime                             @updatedAt

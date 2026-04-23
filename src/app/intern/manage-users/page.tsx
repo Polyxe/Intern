@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
+import { wasEditedAfterApproval } from "@/lib/internship-application";
 import { prisma } from "@/lib/prisma";
 import {
   canAccessUserManagement,
@@ -27,7 +28,12 @@ export default async function ManageUsersDashboardPage() {
   }
 
   const users = await prisma.user.findMany({
-    where: currentUser.role === USER_ROLES.Admin ? { role: USER_ROLES.Student } : undefined,
+    where:
+      currentUser.role === USER_ROLES.Admin
+        ? { role: USER_ROLES.Student }
+        : currentUser.role === USER_ROLES.Superadmin
+          ? { id: { not: currentUser.id } }
+          : undefined,
     orderBy: [{ createdAt: "desc" }],
     select: {
       id: true,
@@ -37,7 +43,22 @@ export default async function ManageUsersDashboardPage() {
       email: true,
       role: true,
       createdAt: true,
+      application: {
+        select: {
+          editedAfterApprovalAt: true,
+        },
+      },
     },
+  });
+  const sortedUsers = [...users].sort((left, right) => {
+    const rightNeedsReview = Number(wasEditedAfterApproval(right.application));
+    const leftNeedsReview = Number(wasEditedAfterApproval(left.application));
+
+    if (rightNeedsReview !== leftNeedsReview) {
+      return rightNeedsReview - leftNeedsReview;
+    }
+
+    return right.createdAt.getTime() - left.createdAt.getTime();
   });
   const allowedRoles = getRoleOptionsForManager(currentUser.role);
 
@@ -100,7 +121,7 @@ export default async function ManageUsersDashboardPage() {
             </div>
 
             <div className="mt-6 space-y-4">
-              {users.map((user) => (
+              {sortedUsers.map((user) => (
                 <Link
                   key={user.id}
                   href={`/intern/manage-users/${user.id}`}
@@ -112,6 +133,11 @@ export default async function ManageUsersDashboardPage() {
                       <p className="text-sm text-slate-600">{user.email}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-sm">
+                      {wasEditedAfterApproval(user.application) ? (
+                        <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 font-semibold text-orange-900 shadow-sm">
+                          มีการแก้ไขหลังอนุมัติ
+                        </span>
+                      ) : null}
                       <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700 shadow-sm">
                         {roleLabels[user.role]}
                       </span>

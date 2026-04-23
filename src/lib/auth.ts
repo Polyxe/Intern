@@ -24,6 +24,7 @@ export async function getCurrentUser() {
       email: true,
       role: true,
       profileImagePath: true,
+      acceptedTermsAt: true,
     },
   });
 }

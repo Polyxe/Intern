@@ -42,6 +42,7 @@ export const internshipApplicationSelect = {
   notes: true,
   approvalStatus: true,
   approvedAt: true,
+  editedAfterApprovalAt: true,
   attachments: {
     select: {
       id: true,
@@ -143,4 +144,10 @@ export function canStudentEditApplication(
   now = new Date(),
 ) {
   return getInternshipStatus(application, now) !== INTERNSHIP_STATUSES.Completed;
+}
+
+export function wasEditedAfterApproval(
+  application: Pick<InternshipApplicationRecord, "editedAfterApprovalAt"> | null,
+) {
+  return Boolean(application?.editedAfterApprovalAt);
 }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { getCurrentUser } from "@/lib/auth";
 import { INTERN_BASE_PATH } from "@/lib/public-paths";
-import { getAccountPagePath, getPostLoginPath, USER_ROLES } from "@/lib/user-management";
+import { getAccountPagePathForUser, getPostLoginPathForUser, USER_ROLES } from "@/lib/user-management";
 
 function LogoMark() {
   return (
@@ -50,8 +50,8 @@ function LogoMark() {
 
 export async function AppHeader() {
   const currentUser = await getCurrentUser();
-  const logoHref = currentUser ? getPostLoginPath(currentUser.role) : INTERN_BASE_PATH;
-  const accountHref = currentUser ? getAccountPagePath(currentUser.role, currentUser.id) : INTERN_BASE_PATH;
+  const logoHref = currentUser ? await getPostLoginPathForUser(currentUser) : INTERN_BASE_PATH;
+  const accountHref = currentUser ? await getAccountPagePathForUser(currentUser) : INTERN_BASE_PATH;
   const accountLabel = currentUser?.role === USER_ROLES.Student ? "Student Profile" : "My Account";
 
   return (

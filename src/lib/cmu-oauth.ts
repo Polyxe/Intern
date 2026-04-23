@@ -4,11 +4,12 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 
+import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
 import { INTERN_BASE_PATH } from "@/lib/public-paths";
 import { hashPassword, normalizeEmail } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { AUTH_PROVIDERS, createSession } from "@/lib/session";
-import { getPostLoginPath, USER_ROLES } from "@/lib/user-management";
+import { getPostLoginPathForUser, USER_ROLES } from "@/lib/user-management";
 
 const CMU_OAUTH_STATE_COOKIE_NAME = "cmu_oauth_state";
 const DEFAULT_CALLBACK_PATH = "/intern/api/auth/callback";
@@ -32,7 +33,11 @@ type CmuBasicInfo = {
   firstName: string;
   lastName: string;
   institution: string | null;
+  profileImageSource: string | null;
 };
+
+const MAX_OAUTH_PROFILE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_OAUTH_PROFILE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
 
 function getEnvValue(name: string) {
   return process.env[name]?.trim() ?? "";
@@ -107,6 +112,117 @@ function normalizeCmuEmail(email: string) {
   return normalized;
 }
 
+function normalizeProfileImageSource(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (/^https?:\/\//i.test(normalized) || /^data:image\//i.test(normalized)) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeImageMimeType(mimeType: string) {
+  return mimeType.trim().toLowerCase() === "image/jpg" ? "image/jpeg" : mimeType.trim().toLowerCase();
+}
+
+function getImageExtension(mimeType: string) {
+  switch (normalizeImageMimeType(mimeType)) {
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/jpeg":
+      return "jpg";
+    default:
+      return null;
+  }
+}
+
+async function buildOauthProfilePhotoFile(profileImageSource: string) {
+  if (profileImageSource.startsWith("data:image/")) {
+    const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i.exec(profileImageSource);
+
+    if (!match) {
+      return null;
+    }
+
+    const mimeType = normalizeImageMimeType(match[1]);
+
+    if (!ALLOWED_OAUTH_PROFILE_MIME_TYPES.has(mimeType)) {
+      return null;
+    }
+
+    const buffer = Buffer.from(match[2], "base64");
+
+    if (buffer.byteLength > MAX_OAUTH_PROFILE_IMAGE_SIZE_BYTES) {
+      return null;
+    }
+
+    return new File([buffer], `oauth-profile.${getImageExtension(mimeType) ?? "jpg"}`, {
+      type: mimeType,
+    });
+  }
+
+  const response = await fetch(profileImageSource, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const mimeType = normalizeImageMimeType(response.headers.get("content-type")?.split(";")[0] ?? "");
+
+  if (!ALLOWED_OAUTH_PROFILE_MIME_TYPES.has(mimeType)) {
+    return null;
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+
+  if (arrayBuffer.byteLength > MAX_OAUTH_PROFILE_IMAGE_SIZE_BYTES) {
+    return null;
+  }
+
+  return new File([arrayBuffer], `oauth-profile.${getImageExtension(mimeType) ?? "jpg"}`, {
+    type: mimeType,
+  });
+}
+
+async function replaceUserProfileImageFromOauth(userId: string, profileImageSource: string, previousImagePath?: string | null) {
+  try {
+    const profilePhoto = await buildOauthProfilePhotoFile(profileImageSource);
+
+    if (!profilePhoto) {
+      return;
+    }
+
+    const savedProfilePhoto = await saveUploadedFile(profilePhoto, `profile-photos/${userId}`);
+
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          profileImagePath: savedProfilePhoto.filePath,
+        },
+      });
+    } catch {
+      await deleteStoredFiles([savedProfilePhoto.filePath]);
+      return;
+    }
+
+    if (previousImagePath) {
+      await deleteStoredFiles([previousImagePath]);
+    }
+  } catch {
+    // Ignore OAuth profile image import failures and continue login.
+  }
+}
+
 function splitFullName(fullName: string | null) {
   if (!fullName) {
     return { firstName: "", lastName: "" };
@@ -155,6 +271,25 @@ function extractBasicInfo(payload: unknown): CmuBasicInfo {
     lastName: lastName || "",
     institution:
       findFirstString(payload, ["organizationname", "organizationName", "organization", "faculty", "division"]) ?? null,
+    profileImageSource: normalizeProfileImageSource(
+      findFirstString(payload, [
+        "picture",
+        "pictureurl",
+        "pictureUrl",
+        "photo",
+        "photourl",
+        "photoUrl",
+        "avatar",
+        "avatarurl",
+        "avatarUrl",
+        "profileimage",
+        "profileImage",
+        "profileimageurl",
+        "profileImageUrl",
+        "thumbnailphoto",
+        "thumbnailPhoto",
+      ]),
+    ),
   };
 }
 
@@ -222,15 +357,24 @@ async function upsertOauthUser(profile: CmuBasicInfo) {
     select: {
       id: true,
       role: true,
+      acceptedTermsAt: true,
       title: true,
       firstname: true,
       lastname: true,
       institution: true,
+      profileImagePath: true,
+      application: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
   if (existingUser) {
+    const shouldReplaceSeededProfile = existingUser.role === USER_ROLES.Student && !existingUser.application;
     const needsProfileBackfill =
+      shouldReplaceSeededProfile ||
       !existingUser.title.trim() ||
       !existingUser.firstname.trim() ||
       (!existingUser.lastname.trim() && Boolean(profile.lastName)) ||
@@ -240,18 +384,22 @@ async function upsertOauthUser(profile: CmuBasicInfo) {
       await prisma.user.update({
         where: { id: existingUser.id },
         data: {
-          title: existingUser.title.trim() || profile.title,
-          firstname: existingUser.firstname.trim() || profile.firstName,
-          lastname: existingUser.lastname.trim() || profile.lastName,
-          institution: existingUser.institution ?? profile.institution,
+          title: shouldReplaceSeededProfile ? profile.title : existingUser.title.trim() || profile.title,
+          firstname: shouldReplaceSeededProfile ? profile.firstName : existingUser.firstname.trim() || profile.firstName,
+          lastname: shouldReplaceSeededProfile ? profile.lastName || existingUser.lastname : existingUser.lastname.trim() || profile.lastName,
+          institution: shouldReplaceSeededProfile ? profile.institution : existingUser.institution ?? profile.institution,
         },
       });
+    }
+
+    if (shouldReplaceSeededProfile && profile.profileImageSource) {
+      await replaceUserProfileImageFromOauth(existingUser.id, profile.profileImageSource, existingUser.profileImagePath);
     }
 
     return existingUser;
   }
 
-  return prisma.user.create({
+  const createdUser = await prisma.user.create({
     data: {
       title: profile.title,
       firstname: profile.firstName,
@@ -264,8 +412,15 @@ async function upsertOauthUser(profile: CmuBasicInfo) {
     select: {
       id: true,
       role: true,
+      acceptedTermsAt: true,
     },
   });
+
+  if (profile.profileImageSource) {
+    await replaceUserProfileImageFromOauth(createdUser.id, profile.profileImageSource);
+  }
+
+  return createdUser;
 }
 
 export function isCmuOAuthEnabled() {
@@ -374,5 +529,5 @@ export async function completeCmuOAuthLogin(code: string, origin: string) {
 
   await createSession(user.id, AUTH_PROVIDERS.cmuEntra);
 
-  return getPostLoginPath(user.role);
+  return getPostLoginPathForUser(user);
 }
