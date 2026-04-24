@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Briefcase, Edit3, Sparkles, User } from "lucide-react";
 
 import { AccountProfileOverview } from "@/components/account-profile-overview";
 import { StudentProfileOverview } from "@/components/student-profile-overview";
@@ -46,43 +47,70 @@ export default async function InternProfilePage() {
   return (
     <main className="flex-1 px-4 py-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-8">
-        <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_22px_60px_rgba(112,90,138,0.14)] backdrop-blur sm:p-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <span className="inline-flex items-center rounded-full border border-[color:var(--color-shell-border)] bg-[color:var(--color-surface-soft)] px-4 py-1.5 text-sm font-medium text-[color:var(--color-brand-violet-deep)] shadow-sm">
-                เข้าสู่ระบบแล้ว
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-gradient-brand p-8 text-white shadow-glow sm:p-10">
+          <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay [background:radial-gradient(circle_at_15%_20%,white,transparent_50%),radial-gradient(circle_at_85%_80%,white,transparent_45%)]" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-4">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase ring-1 ring-white/25 backdrop-blur">
+                <User className="size-3.5" />
+                {isStudent ? "Intern Profile" : "Account Overview"}
               </span>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                {isStudent ? "โปรไฟล์นักศึกษา" : "ข้อมูลบัญชีผู้ใช้"}
-              </h1>
-              <p className="max-w-3xl text-base leading-8 text-slate-600">
-                {isStudent
-                  ? "โปรไฟล์นี้รวมข้อมูลส่วนตัวและข้อมูลการฝึกงานไว้ในที่เดียว โดยแบบฟอร์มฝึกงานถือเป็นข้อมูลโปรไฟล์ของนักศึกษาโดยตรง"
-                  : "หน้านี้แสดงเฉพาะข้อมูลบัญชีพื้นฐานที่สร้างไว้ตั้งแต่เริ่มต้น โดยไม่แสดงแบบฟอร์มฝึกงานหรือข้อมูลนักศึกษาเพิ่มเติม"}
-              </p>
+
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                  {isStudent ? getDisplayName(currentUser) : "ข้อมูลบัญชีผู้ใช้"}
+                </h1>
+              </div>
+
+              {isStudent && application ? (
+                <p className="text-sm text-white/75">
+                  {displayActionHint(canEditApplication)}
+                </p>
+              ) : isStudent ? (
+                <p className="text-sm text-white/75">เมื่อบันทึกฟอร์มครั้งแรก ข้อมูลทั้งหมดจะถูกรวมเข้ามาแสดงบนหน้าโปรไฟล์นี้ทันที</p>
+              ) : null}
             </div>
 
-            <div className="flex flex-col items-start gap-3 sm:items-end">
+            <div className="flex flex-col items-start gap-3 lg:items-end">
               {applicationStatusMeta ? (
-                <div className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold ${applicationStatusMeta.badgeClassName}`}>
+                <div className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold backdrop-blur ${applicationStatusMeta.badgeClassName}`}>
                   {applicationStatusMeta.label}
                 </div>
               ) : null}
 
               {isStudent ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/intern/application"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-5 text-sm font-semibold ring-1 ring-white/30 backdrop-blur transition hover:bg-white/20"
+                  >
+                    <Briefcase className="size-4" />
+                    ดูฟอร์มฝึกงาน
+                  </Link>
+
+                  <Button
+                    asChild
+                    size="lg"
+                    className="h-11 rounded-xl bg-gradient-accent px-5 text-sm font-bold text-white shadow-accent-glow hover:opacity-95"
+                  >
+                    <Link href="/intern/application">
+                      <Edit3 className="size-4" />
+                      {application ? (canEditApplication ? "แก้ไขโปรไฟล์" : "เปิดดูแบบอ่านอย่างเดียว") : "เริ่มกรอกโปรไฟล์"}
+                    </Link>
+                  </Button>
+                </div>
+              ) : canManageUsers ? (
                 <Button
                   asChild
                   size="lg"
-                  className="h-12 rounded-2xl bg-[linear-gradient(135deg,_#ff9248,_#f26a21)] px-6 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(242,106,33,0.28)] hover:brightness-105"
+                  className="h-11 rounded-xl bg-gradient-accent px-5 text-sm font-bold text-white shadow-accent-glow hover:opacity-95"
                 >
-                  <Link href="/intern/application">
-                    {application ? (canEditApplication ? "แก้ไขโปรไฟล์นักศึกษา" : "เปิดดูโปรไฟล์แบบอ่านอย่างเดียว") : "เริ่มกรอกโปรไฟล์นักศึกษา"}
+                  <Link href="/intern/manage-users">
+                    <Sparkles className="size-4" />
+                    ไปยังแดชบอร์ดจัดการผู้ใช้
                   </Link>
                 </Button>
-              ) : null}
-
-              {isStudent && !application ? (
-                <p className="text-sm leading-6 text-slate-500">เมื่อบันทึกฟอร์มครั้งแรก ข้อมูลทั้งหมดจะถูกรวมเข้ามาแสดงบนหน้าโปรไฟล์นี้ทันที</p>
               ) : null}
             </div>
           </div>
@@ -104,7 +132,7 @@ export default async function InternProfilePage() {
         )}
 
         {canManageUsers ? (
-          <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
+          <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-elegant backdrop-blur sm:p-10">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
                 <span className="inline-flex items-center rounded-full bg-[rgba(142,85,183,0.1)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
@@ -129,4 +157,10 @@ export default async function InternProfilePage() {
       </div>
     </main>
   );
+}
+
+function displayActionHint(canEditApplication: boolean) {
+  return canEditApplication
+    ? "แบบฟอร์มนี้ยังเปิดให้แก้ไขได้ และการเปลี่ยนแปลงจะสะท้อนบนโปรไฟล์ทันทีหลังบันทึก"
+    : "แบบฟอร์มนี้อยู่ในสถานะแบบอ่านอย่างเดียว เพราะสถานะฝึกงานเสร็จสิ้นแล้ว";
 }

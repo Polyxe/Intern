@@ -1,4 +1,17 @@
-import { UserAvatar } from "@/components/user-avatar";
+import type { ReactNode } from "react";
+import {
+  Briefcase,
+  CalendarDays,
+  Clock3,
+  FileText,
+  GraduationCap,
+  Mail,
+  MapPin,
+  Phone,
+  User,
+  type LucideIcon,
+} from "lucide-react";
+
 import {
   formatDateForDisplay,
   getInternshipStatus,
@@ -31,11 +44,106 @@ function displayValue(value?: string | null) {
   return value?.trim() ? value : "-";
 }
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function getUtcDayValue(date: Date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function getDayDifference(from: Date, to: Date) {
+  return Math.floor((getUtcDayValue(to) - getUtcDayValue(from)) / 86_400_000);
+}
+
+function computeProgress(startDate?: Date | null, endDate?: Date | null) {
+  if (!startDate || !endDate) {
+    return {
+      percent: 0,
+      phase: "unknown" as const,
+      daysTotal: 0,
+      daysRemaining: 0,
+    };
+  }
+
+  const now = new Date();
+  const daysTotal = Math.max(1, getDayDifference(startDate, endDate) + 1);
+
+  if (getUtcDayValue(now) < getUtcDayValue(startDate)) {
+    return {
+      percent: 0,
+      phase: "before" as const,
+      daysTotal,
+      daysRemaining: daysTotal,
+    };
+  }
+
+  if (getUtcDayValue(now) > getUtcDayValue(endDate)) {
+    return {
+      percent: 100,
+      phase: "done" as const,
+      daysTotal,
+      daysRemaining: 0,
+    };
+  }
+
+  const elapsedDays = Math.min(daysTotal, getDayDifference(startDate, now) + 1);
+  const daysRemaining = Math.max(0, getDayDifference(now, endDate));
+
+  return {
+    percent: Math.max(1, Math.min(100, Math.round((elapsedDays / daysTotal) * 100))),
+    phase: "active" as const,
+    daysTotal,
+    daysRemaining,
+  };
+}
+
+function DetailCard({
+  icon: Icon,
+  title,
+  description,
+  className,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="rounded-3xl border border-[color:var(--color-shell-border)] bg-white/80 p-5 shadow-sm">
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-2 text-base font-semibold text-slate-950">{value}</dd>
+    <section className={`relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 shadow-elegant ${className ?? ""}`}>
+      <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
+      <div className="relative flex items-center gap-3 border-b border-[color:var(--color-shell-border)] bg-gradient-brand-soft px-6 py-4">
+        <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand text-white shadow-glow">
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
+          {description ? <p className="text-sm text-slate-500">{description}</p> : null}
+        </div>
+      </div>
+      <div className="relative grid gap-4 px-6 py-6">{children}</div>
+    </section>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--color-shell-border)] bg-white/80 px-4 py-3">
+      {Icon ? (
+        <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+          <Icon className="size-4" />
+        </div>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">{label}</p>
+        <p className="mt-1 text-sm font-medium break-words text-slate-900">{value}</p>
+      </div>
     </div>
   );
 }
@@ -44,126 +152,156 @@ export function StudentProfileOverview({ heading, description, user, application
   const status = application ? getInternshipStatus(application) : null;
   const statusMeta = status ? internshipStatusMeta[status] : null;
   const showsReapprovalNotice = wasEditedAfterApproval(application);
+  const progress = computeProgress(application?.internshipStartDate, application?.internshipEndDate);
 
   return (
-    <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-5">
-          <UserAvatar
-            firstName={user.firstname}
-            lastName={user.lastname}
-            imagePath={user.profileImagePath}
-            className="h-24 w-24 border-[color:var(--color-shell-border)]"
-            textClassName="text-2xl"
-          />
-          <div className="space-y-3">
-            <span className="inline-flex items-center rounded-full bg-[rgba(142,85,183,0.1)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
-              Student Profile
-            </span>
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{heading}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{description}</p>
-            </div>
-          </div>
-        </div>
-
-        {statusMeta ? (
-          <div className={`inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
-            {statusMeta.label}
-          </div>
-        ) : null}
-      </div>
-
+    <section className="space-y-6">
       {showsReapprovalNotice ? (
-        <div className="mt-6 rounded-[1.5rem] border border-orange-200 bg-orange-50/80 p-5 text-sm leading-7 text-orange-900 shadow-sm">
+        <div className="rounded-[1.5rem] border border-orange-200 bg-orange-50/85 p-5 text-sm leading-7 text-orange-900 shadow-sm">
           แบบฟอร์มนี้ถูกแก้ไขหลังจากได้รับการอนุมัติเมื่อ{" "}
-          {application?.editedAfterApprovalAt ? formatDateForDisplay(application.editedAfterApprovalAt) : "ล่าสุด"},
-          ขณะนี้จึงอยู่ระหว่างรอผู้ดูแลระบบตรวจสอบการแก้ไขรอบใหม่
+          {application?.editedAfterApprovalAt ? formatDateForDisplay(application.editedAfterApprovalAt) : "ล่าสุด"}
+          ระบบจึงส่งกลับมาอยู่ในรอบการตรวจสอบใหม่โดยอัตโนมัติ
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-3">
-        <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(247,242,252,0.95))] p-6">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-950">ข้อมูลส่วนตัว</h3>
-            <p className="mt-1 text-sm text-slate-500">ข้อมูลโปรไฟล์หลักของนักศึกษาและข้อมูลที่ตั้งต้นจากผู้ดูแลระบบ</p>
+      <div className="grid gap-6 lg:grid-cols-5">
+        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant lg:col-span-2">
+          <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">สถานะการอนุมัติฟอร์ม</p>
+          <div className="mt-3 flex items-center gap-3">
+            {statusMeta ? (
+              <span className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
+                {statusMeta.label}
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+                ยังไม่มีสถานะ
+              </span>
+            )}
           </div>
-          <dl className="grid gap-4">
-            <DetailItem label="ชื่อ - นามสกุล" value={displayValue(`${user.title} ${user.firstname} ${user.lastname}`.trim())} />
-            <DetailItem label="เพศ" value={displayValue(user.sex)} />
-            <DetailItem label="วันเกิด" value={user.birthDate ? formatDateForDisplay(user.birthDate) : "-"} />
-            <DetailItem label="อีเมล" value={user.email} />
-            <DetailItem label="สถาบัน" value={displayValue(user.institution)} />
-            <DetailItem label="สิทธิ์การใช้งาน" value={roleLabels[user.role]} />
-            <DetailItem label="ที่อยู่" value={displayValue(user.address)} />
-          </dl>
-        </div>
+          <p className="mt-4 text-sm leading-7 text-slate-600">{statusMeta?.description ?? "ยังไม่มีข้อมูลสถานะการฝึกงานสำหรับโปรไฟล์นี้"}</p>
+          <p className="mt-4 inline-flex items-center gap-2 text-xs text-slate-500">
+            <Clock3 className="size-3.5" />
+            อัปเดตล่าสุด {application ? formatDateForDisplay(application.updatedAt) : "-"}
+          </p>
+        </section>
 
-        <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,252,248,0.95),_rgba(255,244,235,0.95))] p-6">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-950">ข้อมูลการศึกษาและฝึกงาน</h3>
-            <p className="mt-1 text-sm text-slate-500">ข้อมูลการเรียน ข้อมูลบริษัท และอาจารย์นิเทศ</p>
+        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant lg:col-span-3">
+          <div className="pointer-events-none absolute -bottom-16 -left-10 size-52 rounded-full bg-gradient-accent opacity-[0.12] blur-3xl" />
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">ความคืบหน้าการฝึกงาน</p>
+              <h3 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">{progress.percent}% เสร็จสิ้น</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                {progress.phase === "before" && "ยังไม่เริ่มฝึกงาน กำหนดการเริ่มต้นถูกบันทึกไว้แล้ว"}
+                {progress.phase === "active" && `เหลืออีก ${progress.daysRemaining} วัน จากทั้งหมด ${progress.daysTotal} วัน`}
+                {progress.phase === "done" && "ช่วงเวลาฝึกงานสิ้นสุดแล้วและข้อมูลถูกเก็บไว้เป็นประวัติ"}
+                {progress.phase === "unknown" && "เพิ่มวันที่เริ่มและสิ้นสุดเพื่อให้ระบบคำนวณความคืบหน้าได้"}
+              </p>
+            </div>
+            <span className="hidden rounded-full bg-gradient-brand-soft px-3 py-1 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)] sm:inline-block">
+              {application?.internshipStartDate ? formatDateForDisplay(application.internshipStartDate) : "-"} →{" "}
+              {application?.internshipEndDate ? formatDateForDisplay(application.internshipEndDate) : "-"}
+            </span>
           </div>
-          <dl className="grid gap-4">
-            <DetailItem label="รหัสนักศึกษา" value={displayValue(application?.studentId)} />
-            <DetailItem label="เบอร์โทรศัพท์" value={displayValue(application?.phoneNumber)} />
-            <DetailItem label="คณะ" value={displayValue(application?.faculty)} />
-            <DetailItem label="สาขา / หลักสูตร" value={displayValue(application?.program)} />
-            <DetailItem label="ชั้นปี" value={displayValue(application?.yearLevel)} />
-            <DetailItem label="ตำแหน่งฝึกงาน" value={displayValue(application?.internshipPosition)} />
-            <DetailItem label="ชื่อบริษัท / หน่วยงาน" value={displayValue(application?.companyName)} />
-            <DetailItem label="ที่อยู่บริษัท" value={displayValue(application?.companyAddress)} />
-            <DetailItem label="ชื่ออาจารย์นิเทศ" value={displayValue([application?.guidingProfessorFirstname, application?.guidingProfessorLastname].filter(Boolean).join(" "))} />
-            <DetailItem label="เบอร์โทรอาจารย์นิเทศ" value={displayValue(application?.guidingProfessorPhoneNumber)} />
-          </dl>
-        </div>
 
-        <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(247,251,255,0.95),_rgba(240,247,255,0.95))] p-6">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-950">ผู้ติดต่อและช่วงเวลา</h3>
-            <p className="mt-1 text-sm text-slate-500">ข้อมูลผู้ดูแลสถานประกอบการ ผู้ติดต่อฉุกเฉิน และระยะเวลาฝึกงาน</p>
+          <div className="mt-5">
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-soft)]">
+              <div className="h-full rounded-full bg-gradient-accent shadow-accent-glow" style={{ width: `${progress.percent}%` }} />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays className="size-3.5" />
+                เริ่ม {application?.internshipStartDate ? formatDateForDisplay(application.internshipStartDate) : "-"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays className="size-3.5 text-[color:var(--color-brand-orange-deep)]" />
+                สิ้นสุด {application?.internshipEndDate ? formatDateForDisplay(application.internshipEndDate) : "-"}
+              </span>
+            </div>
           </div>
-          <dl className="grid gap-4">
-            <DetailItem label="ชื่อผู้ดูแลสถานประกอบการ" value={displayValue(application?.companySupervisorName)} />
-            <DetailItem label="ตำแหน่งผู้ดูแล" value={displayValue(application?.companySupervisorRole)} />
-            <DetailItem label="อีเมลผู้ดูแล" value={displayValue(application?.companySupervisorEmail)} />
-            <DetailItem label="เบอร์โทรผู้ดูแล" value={displayValue(application?.companySupervisorPhoneNumber)} />
-            <DetailItem label="เริ่มฝึกงาน" value={application?.internshipStartDate ? formatDateForDisplay(application.internshipStartDate) : "-"} />
-            <DetailItem label="สิ้นสุดฝึกงาน" value={application?.internshipEndDate ? formatDateForDisplay(application.internshipEndDate) : "-"} />
-            <DetailItem label="ชื่อผู้ติดต่อฉุกเฉิน" value={displayValue(application?.emergencyContactName)} />
-            <DetailItem label="ความสัมพันธ์" value={displayValue(application?.emergencyContactRelationship)} />
-            <DetailItem label="เบอร์โทรผู้ติดต่อฉุกเฉิน" value={displayValue(application?.emergencyContactPhoneNumber)} />
-            <DetailItem label="หมายเหตุเพิ่มเติม" value={displayValue(application?.notes)} />
-          </dl>
-        </div>
+        </section>
       </div>
 
-      <div className="mt-6 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(245,248,252,0.95))] p-6">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-950">ไฟล์ประกอบการสมัคร</h3>
-          <p className="mt-1 text-sm text-slate-500">เอกสารที่แนบไว้ในโปรไฟล์นักศึกษา</p>
+      <div className="grid gap-6 md:grid-cols-2">
+        <DetailCard icon={User} title={heading} description={description}>
+          <DetailRow icon={User} label="ชื่อ - นามสกุล" value={displayValue(`${user.title} ${user.firstname} ${user.lastname}`.trim())} />
+          <DetailRow label="เพศ" value={displayValue(user.sex)} />
+          <DetailRow icon={CalendarDays} label="วันเกิด" value={user.birthDate ? formatDateForDisplay(user.birthDate) : "-"} />
+          <DetailRow icon={Mail} label="อีเมล" value={user.email} />
+          <DetailRow label="สถาบัน" value={displayValue(user.institution)} />
+          <DetailRow label="สิทธิ์การใช้งาน" value={roleLabels[user.role]} />
+          <DetailRow icon={MapPin} label="ที่อยู่" value={displayValue(user.address)} />
+        </DetailCard>
+
+        <DetailCard icon={GraduationCap} title="ข้อมูลการศึกษา">
+          <DetailRow label="รหัสนักศึกษา" value={displayValue(application?.studentId)} />
+          <DetailRow icon={Phone} label="เบอร์โทรศัพท์" value={displayValue(application?.phoneNumber)} />
+          <DetailRow label="คณะ" value={displayValue(application?.faculty)} />
+          <DetailRow label="สาขา / หลักสูตร" value={displayValue(application?.program)} />
+          <DetailRow label="ชั้นปี" value={displayValue(application?.yearLevel)} />
+          <DetailRow label="อาจารย์นิเทศ" value={displayValue([application?.guidingProfessorFirstname, application?.guidingProfessorLastname].filter(Boolean).join(" "))} />
+          <DetailRow icon={Phone} label="เบอร์โทรอาจารย์นิเทศ" value={displayValue(application?.guidingProfessorPhoneNumber)} />
+        </DetailCard>
+
+        <DetailCard icon={Briefcase} title="รายละเอียดการฝึกงาน" className="md:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <DetailRow icon={Briefcase} label="ตำแหน่งฝึกงาน" value={displayValue(application?.internshipPosition)} />
+            <DetailRow label="หน่วยงาน / บริษัท" value={displayValue(application?.companyName)} />
+            <DetailRow icon={MapPin} label="ที่อยู่บริษัท" value={displayValue(application?.companyAddress)} />
+            <DetailRow label="ผู้ดูแลในสถานประกอบการ" value={displayValue(application?.companySupervisorName)} />
+            <DetailRow label="ตำแหน่งผู้ดูแล" value={displayValue(application?.companySupervisorRole)} />
+            <DetailRow icon={Mail} label="อีเมลผู้ดูแล" value={displayValue(application?.companySupervisorEmail)} />
+            <DetailRow icon={Phone} label="เบอร์โทรผู้ดูแล" value={displayValue(application?.companySupervisorPhoneNumber)} />
+            <DetailRow label="ผู้ติดต่อฉุกเฉิน" value={displayValue(application?.emergencyContactName)} />
+            <DetailRow label="ความสัมพันธ์" value={displayValue(application?.emergencyContactRelationship)} />
+            <DetailRow icon={Phone} label="เบอร์โทรฉุกเฉิน" value={displayValue(application?.emergencyContactPhoneNumber)} />
+            <div className="md:col-span-2">
+              <DetailRow label="หมายเหตุเพิ่มเติม" value={displayValue(application?.notes)} />
+            </div>
+          </div>
+        </DetailCard>
+      </div>
+
+      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant">
+        <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-brand opacity-[0.07] blur-3xl" />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-950">ไฟล์ประกอบการสมัคร</h2>
+            <p className="mt-1 text-sm text-slate-500">เอกสารที่แนบไว้ในโปรไฟล์นักศึกษาและพร้อมเปิดดูจากพื้นที่สาธารณะของระบบ</p>
+          </div>
+          <div className="inline-flex w-fit items-center rounded-full bg-gradient-brand-soft px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+            ทั้งหมด {application?.attachments.length ?? 0} ไฟล์
+          </div>
         </div>
 
         {application?.attachments.length ? (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="relative mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {application.attachments.map((attachment) => (
               <a
                 key={attachment.id}
                 href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-3xl border border-[color:var(--color-shell-border)] bg-white/80 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)] hover:bg-white"
+                className="rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)]"
               >
-                <p className="text-sm font-semibold text-slate-950">{attachment.fileName}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{attachment.mimeType}</p>
-                <p className="mt-3 text-sm text-slate-600">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                <div className="flex items-start gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+                    <FileText className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-950">{attachment.fileName}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">{attachment.mimeType}</p>
+                    <p className="mt-3 text-sm text-slate-600">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                  </div>
+                </div>
               </a>
             ))}
           </div>
         ) : (
-          <p className="mt-5 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในโปรไฟล์นี้</p>
+          <p className="relative mt-5 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในโปรไฟล์นี้</p>
         )}
-      </div>
+      </section>
     </section>
   );
 }

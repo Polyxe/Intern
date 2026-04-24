@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
 import { INTERNSHIP_APPLICATION_APPROVAL_STATUSES, parseDateInput } from "@/lib/internship-application";
 import { hashPassword, normalizeEmail } from "@/lib/password";
+import { createNotification } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import {
   USER_ROLES,
@@ -733,6 +734,16 @@ export async function updateManagedApplicationApproval(
       editedAfterApprovalAt: null,
     },
   });
+
+  const statusLabel =
+    requestedApprovalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Approved
+      ? "On-going (อนุมัติแล้ว)"
+      : "Pending (รอการตรวจสอบ)";
+  await createNotification(
+    userId,
+    "สถานะการฝึกงานของคุณเปลี่ยนแปลง",
+    `ผู้ดูแลระบบได้อัปเดตสถานะการฝึกงานของคุณเป็น "${statusLabel}"`,
+  );
 
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${userId}`);

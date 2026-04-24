@@ -1,18 +1,23 @@
 [x] Feature 000: Setup Database
+
 [x] Feature 001: Implement CMU entra ID OAUTH: with the variable in the .env file, implement the OAUTH accordingly, and determine the CALLBACK_URL so my professor can generate the OAuth accordingly. 
+
 [x] Feature 002: Student Features
 - Accept TOS on first login
 - View/edit profile
 - Submit internship form
 - Upload attachments
+
 [x] Feature 003: Superadmin account management:
 - The superadmin shouldn't see themselve in the management list.
 - The superadmin should be able to perform CRUD on every account(including admins)'s data: Creating user accounts (admins, students), Viewing user accounts' details, Deleting user account from the database, Editting the user data (except for password).
 - The superadmin should be able to edit their name, email, password, and profile picture.
+
 [x] Feature 004: Admin account management:
 - The admin shouldn't see themselve in the management list.
 - The admin should be able to perform CRUD on every student account's data: Creating student user accounts, Viewing student accounts' details, Deleting student account from the database, Editting the student data (except for password).
 - The admin should be able to edit their name, email, password, and profile picture.
+
 [x] Feature 005: Student Profile Management:
 - The student should have some of the profile datas pre populated if they use CMU entra ID OAuth, replacing the initial values from the Superadmin and Admin when they created the user email.
 - If the OAuth provided a profile picture, use it as the student profile pictur, editable, and visible on the nav bar and profile page.

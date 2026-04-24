@@ -32,6 +32,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use orange only for high-priority actions and small accent moments; avoid turning the full page into an orange-heavy interface.
 - Prefer charcoal or deep slate for text, with violet reserved for section accents, pills, and supporting emphasis.
 - Surfaces should feel soft and slightly elevated: rounded corners, low-contrast borders, and restrained shadows instead of sharp black outlines.
+- Current UI direction also follows the Lovable reference in https://github.com/Polyxe/intern-wonderland-form for the student form/profile experience; future redesigns should preserve that visual language without needing to re-check the repo.
+- Use a sticky `bg-gradient-brand` header with translucent pill navigation, a glassy account chip, and subtle radial highlight overlays rather than flat bars.
+- For hero sections, prefer either a centered intro with `text-gradient-brand` heading emphasis or a full-width `bg-gradient-brand` banner with white text and softly blended radial highlights.
+- Structure major content areas as rounded `3xl` cards with soft borders, `shadow-elegant`, and section headers that use `bg-gradient-brand-soft`, an icon tile, and an optional step badge.
+- Student profile pages should include a dedicated approval-status card, an internship-progress card with an accent progress bar, and detail cards grouped by personal, education, and internship information.
+- Student application pages should feature a prominent profile-photo upload card, multi-section form cards, and a footer action panel with an orange gradient primary button and muted secondary action.
+- Keep body backgrounds airy with a subtle mesh or radial gradient treatment; avoid flat white pages when working on the student-facing flows.
+- When adapting Lovable concepts into this repo, port the visual system and component hierarchy, but keep the existing Next.js routing, Prisma-backed data flow, and server actions instead of importing client-only mock state patterns from the reference app.
 - For unauthenticated states, keep the header right side empty instead of showing placeholder user details.
 
 ## Key Files

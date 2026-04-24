@@ -1,4 +1,17 @@
 import {
+  Briefcase,
+  CalendarDays,
+  FileText,
+  GraduationCap,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  User,
+  type LucideIcon,
+} from "lucide-react";
+
+import {
   formatDateForDisplay,
   getInternshipStatus,
   internshipStatusMeta,
@@ -12,11 +25,60 @@ type InternshipApplicationOverviewProps = {
   description: string;
 };
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function displayValue(value?: string | null) {
+  return value?.trim() ? value : "-";
+}
+
+function DetailCard({
+  icon: Icon,
+  title,
+  description,
+  className,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-3xl border border-[color:var(--color-shell-border)] bg-white/80 p-5 shadow-sm">
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-2 text-base font-semibold text-slate-950">{value}</dd>
+    <section className={`relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 shadow-elegant ${className ?? ""}`}>
+      <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
+      <div className="relative flex items-center gap-3 border-b border-[color:var(--color-shell-border)] bg-gradient-brand-soft px-6 py-4">
+        <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand text-white shadow-glow">
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
+          {description ? <p className="text-sm text-slate-500">{description}</p> : null}
+        </div>
+      </div>
+      <div className="relative grid gap-4 px-6 py-6">{children}</div>
+    </section>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--color-shell-border)] bg-white/80 px-4 py-3">
+      {Icon ? (
+        <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+          <Icon className="size-4" />
+        </div>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">{label}</p>
+        <p className="mt-1 text-sm font-medium break-words text-slate-900">{value}</p>
+      </div>
     </div>
   );
 }
@@ -31,103 +93,100 @@ export function InternshipApplicationOverview({
   const hasAttachments = application.attachments.length > 0;
 
   return (
-    <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <span className="inline-flex items-center rounded-full bg-[rgba(142,85,183,0.1)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
-            Internship Application
-          </span>
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{heading}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{description}</p>
+    <section className="space-y-6">
+      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant">
+        <div className="pointer-events-none absolute -top-16 -right-12 size-44 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <span className="inline-flex items-center rounded-full bg-gradient-brand-soft px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase ring-1 ring-[rgba(142,85,183,0.12)]">
+              Internship Application
+            </span>
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{heading}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{description}</p>
+            </div>
+          </div>
+
+          <div className={`inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
+            {statusMeta.label}
           </div>
         </div>
+      </section>
 
-        <div
-          className={`inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}
-        >
-          {statusMeta.label}
-        </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <DetailCard icon={GraduationCap} title="ข้อมูลนักศึกษา" description="ข้อมูลประจำตัวและข้อมูลการศึกษาของผู้สมัคร">
+          <DetailRow icon={User} label="รหัสนักศึกษา" value={displayValue(application.studentId)} />
+          <DetailRow icon={Phone} label="เบอร์โทรศัพท์" value={displayValue(application.phoneNumber)} />
+          <DetailRow label="คณะ" value={displayValue(application.faculty)} />
+          <DetailRow label="สาขา / หลักสูตร" value={displayValue(application.program)} />
+          <DetailRow label="ชั้นปี" value={displayValue(application.yearLevel)} />
+          <DetailRow label="อาจารย์นิเทศ" value={displayValue([application.guidingProfessorFirstname, application.guidingProfessorLastname].filter(Boolean).join(" "))} />
+          <DetailRow icon={Phone} label="เบอร์อาจารย์นิเทศ" value={displayValue(application.guidingProfessorPhoneNumber)} />
+        </DetailCard>
+
+        <DetailCard icon={Briefcase} title="รายละเอียดสถานประกอบการ" description="ตำแหน่งฝึกงาน ข้อมูลบริษัท และผู้ดูแลในสถานประกอบการ">
+          <DetailRow icon={Briefcase} label="ตำแหน่งฝึกงาน" value={displayValue(application.internshipPosition)} />
+          <DetailRow label="ชื่อบริษัท / หน่วยงาน" value={displayValue(application.companyName)} />
+          <DetailRow icon={MapPin} label="ที่อยู่บริษัท" value={displayValue(application.companyAddress)} />
+          <DetailRow label="ชื่อผู้ดูแล" value={displayValue(application.companySupervisorName)} />
+          <DetailRow label="ตำแหน่งผู้ดูแล" value={displayValue(application.companySupervisorRole)} />
+          <DetailRow icon={Mail} label="อีเมลผู้ดูแล" value={displayValue(application.companySupervisorEmail)} />
+          <DetailRow icon={Phone} label="เบอร์ผู้ดูแล" value={displayValue(application.companySupervisorPhoneNumber)} />
+        </DetailCard>
+
+        <DetailCard icon={CalendarDays} title="ช่วงเวลาและผู้ติดต่อฉุกเฉิน" description="ข้อมูลวันที่ฝึกงานและการติดต่อสำรอง" className="md:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <DetailRow icon={CalendarDays} label="เริ่มฝึกงาน" value={formatDateForDisplay(application.internshipStartDate)} />
+            <DetailRow icon={CalendarDays} label="สิ้นสุดฝึกงาน" value={formatDateForDisplay(application.internshipEndDate)} />
+            <DetailRow icon={ShieldCheck} label="ชื่อผู้ติดต่อฉุกเฉิน" value={displayValue(application.emergencyContactName)} />
+            <DetailRow label="ความสัมพันธ์" value={displayValue(application.emergencyContactRelationship)} />
+            <DetailRow icon={Phone} label="เบอร์ผู้ติดต่อฉุกเฉิน" value={displayValue(application.emergencyContactPhoneNumber)} />
+            <div className="md:col-span-2">
+              <DetailRow label="หมายเหตุเพิ่มเติม" value={displayValue(application.notes)} />
+            </div>
+          </div>
+        </DetailCard>
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-3">
-        <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(247,242,252,0.95))] p-6">
+      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/90 p-6 shadow-elegant">
+        <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-brand opacity-[0.07] blur-3xl" />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-950">ข้อมูลนักศึกษา</h3>
-            <p className="mt-1 text-sm text-slate-500">ข้อมูลประจำตัวและสาขาวิชาของผู้สมัคร</p>
+            <h3 className="text-lg font-semibold tracking-tight text-slate-950">ไฟล์ประกอบการสมัคร</h3>
+            <p className="mt-1 text-sm text-slate-500">เอกสารที่นักศึกษาอัปโหลดไว้สำหรับการตรวจสอบแบบฟอร์มฝึกงาน</p>
           </div>
-          <dl className="grid gap-4">
-            <DetailItem label="รหัสนักศึกษา" value={application.studentId} />
-            <DetailItem label="เบอร์โทรศัพท์" value={application.phoneNumber} />
-            <DetailItem label="คณะ" value={application.faculty} />
-            <DetailItem label="สาขา / หลักสูตร" value={application.program} />
-            <DetailItem label="ชั้นปี" value={application.yearLevel} />
-          </dl>
-        </div>
-
-        <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,252,248,0.95),_rgba(255,244,235,0.95))] p-6">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-950">รายละเอียดสถานประกอบการ</h3>
-            <p className="mt-1 text-sm text-slate-500">ตำแหน่งฝึกงาน ข้อมูลบริษัท และผู้ดูแลในสถานประกอบการ</p>
+          <div className="inline-flex w-fit items-center rounded-full bg-gradient-brand-soft px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+            ทั้งหมด {application.attachments.length} ไฟล์
           </div>
-          <dl className="grid gap-4">
-            <DetailItem label="ตำแหน่งฝึกงาน" value={application.internshipPosition} />
-            <DetailItem label="ชื่อบริษัท / หน่วยงาน" value={application.companyName} />
-            <DetailItem label="ที่อยู่บริษัท" value={application.companyAddress} />
-            <DetailItem label="ชื่อผู้ดูแล" value={application.companySupervisorName} />
-            <DetailItem label="ตำแหน่งผู้ดูแล" value={application.companySupervisorRole} />
-            <DetailItem label="อีเมลผู้ดูแล" value={application.companySupervisorEmail} />
-            <DetailItem label="เบอร์ผู้ดูแล" value={application.companySupervisorPhoneNumber} />
-          </dl>
-        </div>
-
-        <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(247,251,255,0.95),_rgba(240,247,255,0.95))] p-6">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-950">ช่วงเวลาและผู้ติดต่อฉุกเฉิน</h3>
-            <p className="mt-1 text-sm text-slate-500">ใช้ติดตามสถานะการฝึกงานและการติดต่อสำรอง</p>
-          </div>
-          <dl className="grid gap-4">
-            <DetailItem label="เริ่มฝึกงาน" value={formatDateForDisplay(application.internshipStartDate)} />
-            <DetailItem label="สิ้นสุดฝึกงาน" value={formatDateForDisplay(application.internshipEndDate)} />
-            <DetailItem label="ชื่อผู้ติดต่อฉุกเฉิน" value={application.emergencyContactName} />
-            <DetailItem label="ความสัมพันธ์" value={application.emergencyContactRelationship} />
-            <DetailItem label="เบอร์ผู้ติดต่อฉุกเฉิน" value={application.emergencyContactPhoneNumber} />
-            <DetailItem
-              label="หมายเหตุเพิ่มเติม"
-              value={application.notes?.trim() ? application.notes : "-"}
-            />
-          </dl>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(245,248,252,0.95))] p-6">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-950">ไฟล์ประกอบการสมัคร</h3>
-          <p className="mt-1 text-sm text-slate-500">เอกสารที่นักศึกษาอัปโหลดไว้สำหรับการตรวจสอบแบบฟอร์มฝึกงาน</p>
         </div>
 
         {hasAttachments ? (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="relative mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {application.attachments.map((attachment) => (
               <a
                 key={attachment.id}
                 href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-3xl border border-[color:var(--color-shell-border)] bg-white/80 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)] hover:bg-white"
+                className="rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)]"
               >
-                <p className="text-sm font-semibold text-slate-950">{attachment.fileName}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{attachment.mimeType}</p>
-                <p className="mt-3 text-sm text-slate-600">
-                  {(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB
-                </p>
+                <div className="flex items-start gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+                    <FileText className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-950">{attachment.fileName}</p>
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">{attachment.mimeType}</p>
+                    <p className="mt-3 text-sm text-slate-600">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                  </div>
+                </div>
               </a>
             ))}
           </div>
         ) : (
-          <p className="mt-5 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในใบสมัครนี้</p>
+          <p className="relative mt-5 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในใบสมัครนี้</p>
         )}
-      </div>
+      </section>
     </section>
   );
 }

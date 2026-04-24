@@ -10,6 +10,7 @@ import {
 } from "@/lib/internship-application";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
+import { createNotificationsForAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { USER_ROLES } from "@/lib/user-management";
 
@@ -322,8 +323,6 @@ export async function saveInternshipApplication(
           emergencyContactRelationship: values.emergencyContactRelationship,
           emergencyContactPhoneNumber: values.emergencyContactPhoneNumber,
           notes: values.notes || null,
-          approvalStatus: INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending,
-          approvedAt: null,
           editedAfterApprovalAt,
         },
         create: {
@@ -372,6 +371,15 @@ export async function saveInternshipApplication(
 
     if (savedProfilePhoto && oldProfileImagePath) {
       await deleteStoredFiles([oldProfileImagePath]);
+    }
+
+    // Notify admins when a student edits an existing application
+    if (existingApplication) {
+      const studentName = `${values.firstname} ${values.lastname}`.trim();
+      await createNotificationsForAdmins(
+        "นักศึกษาแก้ไขข้อมูลฝึกงาน",
+        `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงาน กรุณาตรวจสอบและอัปเดตสถานะหากจำเป็น`,
+      );
     }
   } catch {
     await deleteStoredFiles(newlySavedFilePaths);
