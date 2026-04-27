@@ -9,8 +9,8 @@ const SESSION_PROVIDER_COOKIE_NAME = "intern_auth_provider";
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const AUTH_PROVIDERS = {
-  password: "password",
   cmuEntra: "cmu-entra",
+  google: "google",
 } as const;
 
 export type AuthProvider = (typeof AUTH_PROVIDERS)[keyof typeof AUTH_PROVIDERS];
@@ -67,7 +67,7 @@ function decodeSession(sessionValue?: string) {
   };
 }
 
-export async function createSession(userId: string, authProvider: AuthProvider = AUTH_PROVIDERS.password) {
+export async function createSession(userId: string, authProvider: AuthProvider) {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
   const cookieStore = await cookies();
 
@@ -105,7 +105,7 @@ export async function getSessionUserId() {
 export async function getSessionAuthProvider() {
   const provider = (await cookies()).get(SESSION_PROVIDER_COOKIE_NAME)?.value;
 
-  if (provider === AUTH_PROVIDERS.cmuEntra || provider === AUTH_PROVIDERS.password) {
+  if (provider === AUTH_PROVIDERS.cmuEntra || provider === AUTH_PROVIDERS.google) {
     return provider;
   }
 

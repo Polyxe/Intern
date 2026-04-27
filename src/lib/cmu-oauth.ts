@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
 import { INTERN_BASE_PATH } from "@/lib/public-paths";
-import { hashPassword, normalizeEmail } from "@/lib/password";
+import { normalizeEmail } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { AUTH_PROVIDERS, createSession } from "@/lib/session";
 import { getPostLoginPathForUser, USER_ROLES } from "@/lib/user-management";
@@ -38,6 +38,13 @@ type CmuBasicInfo = {
 
 const MAX_OAUTH_PROFILE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_OAUTH_PROFILE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+
+export class CmuOAuthAccountNotProvisionedError extends Error {
+  constructor(email: string) {
+    super(`CMU OAuth account is not provisioned for ${email}.`);
+    this.name = "CmuOAuthAccountNotProvisionedError";
+  }
+}
 
 function getEnvValue(name: string) {
   return process.env[name]?.trim() ?? "";
@@ -351,7 +358,6 @@ async function fetchCmuBasicInfo(accessToken: string) {
 }
 
 async function upsertOauthUser(profile: CmuBasicInfo) {
-  const generatedPassword = hashPassword(randomBytes(32).toString("base64url"));
   const existingUser = await prisma.user.findUnique({
     where: { email: profile.email },
     select: {
@@ -399,28 +405,7 @@ async function upsertOauthUser(profile: CmuBasicInfo) {
     return existingUser;
   }
 
-  const createdUser = await prisma.user.create({
-    data: {
-      title: profile.title,
-      firstname: profile.firstName,
-      lastname: profile.lastName,
-      institution: profile.institution,
-      email: profile.email,
-      password: generatedPassword,
-      role: USER_ROLES.Student,
-    },
-    select: {
-      id: true,
-      role: true,
-      acceptedTermsAt: true,
-    },
-  });
-
-  if (profile.profileImageSource) {
-    await replaceUserProfileImageFromOauth(createdUser.id, profile.profileImageSource);
-  }
-
-  return createdUser;
+  throw new CmuOAuthAccountNotProvisionedError(profile.email);
 }
 
 export function isCmuOAuthEnabled() {

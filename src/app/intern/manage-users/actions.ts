@@ -5,9 +5,21 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
-import { INTERNSHIP_APPLICATION_APPROVAL_STATUSES, parseDateInput } from "@/lib/internship-application";
-import { hashPassword, normalizeEmail } from "@/lib/password";
-import { createNotification } from "@/lib/notifications";
+import {
+  isFutureDate,
+  isValidPhoneNumber,
+  isValidSingleDigitNumber,
+  isValidStudentId,
+} from "@/lib/form-validation";
+import {
+  INTERNSHIP_APPLICATION_STATUSES,
+  getLifecycleStatusLabel,
+  parseDateInput,
+  type InternshipApplicationStatus,
+} from "@/lib/internship-application";
+import { getValidatedManageUsersReturnTo } from "@/lib/manage-users-routing";
+import { createOAuthOnlyPasswordHash, normalizeEmail } from "@/lib/password";
+import { notifyUser } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import {
   USER_ROLES,
@@ -17,6 +29,7 @@ import {
   canManagerEditUser,
   canManagerViewUser,
   getAssignableRoles,
+  roleLabels,
 } from "@/lib/user-management";
 
 const MAX_PROFILE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -52,15 +65,15 @@ export async function createManagedUser(
 
   const assignableRoles = getAssignableRoles(currentUser.role);
   const email = normalizeEmail(String(formData.get("email") ?? ""));
-  const password = String(formData.get("password") ?? "");
   const requestedRole = String(formData.get("role") ?? "");
+  const requestedReturnTo = getValidatedManageUsersReturnTo(String(formData.get("returnTo") ?? "") || null);
   const title = String(formData.get("title") ?? "").trim();
   const firstname = String(formData.get("firstname") ?? "").trim();
   const lastname = String(formData.get("lastname") ?? "").trim();
 
-  if (!email || !password || !requestedRole) {
+  if (!email || !requestedRole) {
     return {
-      error: "กรุณากรอกอีเมล รหัสผ่าน และสิทธิ์การใช้งานให้ครบถ้วน",
+      error: "กรุณากรอกอีเมลและสิทธิ์การใช้งานให้ครบถ้วน",
       success: "",
     };
   }
@@ -68,13 +81,6 @@ export async function createManagedUser(
   if (!isValidEmail(email)) {
     return {
       error: "รูปแบบอีเมลไม่ถูกต้อง",
-      success: "",
-    };
-  }
-
-  if (password.length < 8) {
-    return {
-      error: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
       success: "",
     };
   }
@@ -100,23 +106,30 @@ export async function createManagedUser(
     };
   }
 
-  await prisma.user.create({
+  const createdUser = await prisma.user.create({
     data: {
       title: title || "คุณ",
       firstname: firstname || getDefaultFirstname(email),
       lastname,
       email,
-      password: hashPassword(password),
+      password: createOAuthOnlyPasswordHash(),
       role,
+    },
+    select: {
+      id: true,
     },
   });
 
   revalidatePath("/intern/manage-users");
 
-  return {
-    error: "",
-    success: "สร้างบัญชีผู้ใช้เรียบร้อยแล้ว",
-  };
+  const destination = new URL(`/intern/manage-users/${createdUser.id}`, "https://manage-users.local");
+  destination.searchParams.set("created", "1");
+
+  if (requestedReturnTo) {
+    destination.searchParams.set("returnTo", requestedReturnTo);
+  }
+
+  redirect(`${destination.pathname}${destination.search}`);
 }
 
 export async function updateManagedStudentDetails(
@@ -181,6 +194,9 @@ export async function updateManagedStudentDetails(
     where: { id: userId },
     select: {
       id: true,
+      title: true,
+      firstname: true,
+      lastname: true,
       email: true,
       role: true,
       application: {
@@ -242,6 +258,62 @@ export async function updateManagedStudentDetails(
   if (birthDateValue && !birthDate) {
     return {
       error: "วันเกิดไม่ถูกต้อง",
+      success: "",
+    };
+  }
+
+  if (birthDate && isFutureDate(birthDate)) {
+    return {
+      error: "วันเกิดต้องไม่เป็นวันที่ในอนาคต",
+      success: "",
+    };
+  }
+
+  if (studentId && !isValidStudentId(studentId)) {
+    return {
+      error: "รหัสนักศึกษาต้องเป็นตัวเลข 9 หลัก",
+      success: "",
+    };
+  }
+
+  if (phoneNumber && !isValidPhoneNumber(phoneNumber)) {
+    return {
+      error: "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก",
+      success: "",
+    };
+  }
+
+  if (guidingProfessorPhoneNumber && !isValidPhoneNumber(guidingProfessorPhoneNumber)) {
+    return {
+      error: "เบอร์โทรอาจารย์นิเทศต้องเป็นตัวเลข 9-10 หลัก",
+      success: "",
+    };
+  }
+
+  if (companySupervisorEmail && !isValidEmail(companySupervisorEmail)) {
+    return {
+      error: "อีเมลผู้ดูแลในสถานประกอบการไม่ถูกต้อง",
+      success: "",
+    };
+  }
+
+  if (companySupervisorPhoneNumber && !isValidPhoneNumber(companySupervisorPhoneNumber)) {
+    return {
+      error: "เบอร์โทรผู้ดูแลต้องเป็นตัวเลข 9-10 หลัก",
+      success: "",
+    };
+  }
+
+  if (emergencyContactPhoneNumber && !isValidPhoneNumber(emergencyContactPhoneNumber)) {
+    return {
+      error: "เบอร์โทรผู้ติดต่อฉุกเฉินต้องเป็นตัวเลข 9-10 หลัก",
+      success: "",
+    };
+  }
+
+  if (yearLevel && !isValidSingleDigitNumber(yearLevel)) {
+    return {
+      error: "ชั้นปีต้องเป็นตัวเลข 1 หลัก",
       success: "",
     };
   }
@@ -382,6 +454,20 @@ export async function updateManagedStudentDetails(
     }
   });
 
+  await notifyUser(
+    userId,
+    "ข้อมูลฝึกงานของคุณถูกอัปเดตโดยผู้ดูแลระบบ",
+    `${roleLabels[currentUser.role]}ได้อัปเดตข้อมูลนักศึกษาและข้อมูลฝึกงานของคุณแล้ว กรุณาตรวจสอบข้อมูลล่าสุดในระบบ`,
+    {
+      email: {
+        recipientEmail: nextEmail,
+        subject: "ข้อมูลฝึกงานของคุณถูกอัปเดตโดยผู้ดูแลระบบ",
+        actionPath: "/intern/profile",
+        actionLabel: "เปิดดูข้อมูลของฉัน",
+      },
+    },
+  );
+
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${userId}`);
   revalidatePath(`/intern/manage-users/${userId}/edit`);
@@ -416,7 +502,6 @@ export async function updateManagedAccountDetails(
   const address = String(formData.get("address") ?? "").trim();
   const institution = String(formData.get("institution") ?? "").trim();
   const email = normalizeEmail(String(formData.get("email") ?? ""));
-  const password = String(formData.get("password") ?? "");
   const profilePhotoEntry = formData.get("profilePhoto");
   const profilePhoto = profilePhotoEntry instanceof File && profilePhotoEntry.size > 0 ? profilePhotoEntry : null;
 
@@ -438,6 +523,9 @@ export async function updateManagedAccountDetails(
     where: { id: userId },
     select: {
       id: true,
+      title: true,
+      firstname: true,
+      lastname: true,
       email: true,
       profileImagePath: true,
       role: true,
@@ -460,7 +548,6 @@ export async function updateManagedAccountDetails(
   }
 
   const canEditEmail = currentUser.role === USER_ROLES.Superadmin || isSelf;
-  const canEditPassword = isSelf;
   const nextEmail = canEditEmail ? email : targetUser.email;
 
   if (!nextEmail) {
@@ -473,20 +560,6 @@ export async function updateManagedAccountDetails(
   if (!isValidEmail(nextEmail)) {
     return {
       error: "รูปแบบอีเมลไม่ถูกต้อง",
-      success: "",
-    };
-  }
-
-  if (password && !canEditPassword) {
-    return {
-      error: "จัดการรหัสผ่านได้เฉพาะบัญชีของคุณเอง",
-      success: "",
-    };
-  }
-
-  if (password && password.length < 8) {
-    return {
-      error: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
       success: "",
     };
   }
@@ -535,6 +608,13 @@ export async function updateManagedAccountDetails(
     };
   }
 
+  if (birthDate && isFutureDate(birthDate)) {
+    return {
+      error: "วันเกิดต้องไม่เป็นวันที่ในอนาคต",
+      success: "",
+    };
+  }
+
   const newFilePaths: string[] = [];
 
   try {
@@ -557,7 +637,6 @@ export async function updateManagedAccountDetails(
         address: address || null,
         institution: institution || null,
         email: nextEmail,
-        password: password ? hashPassword(password) : undefined,
         ...(savedProfilePhoto ? { profileImagePath: savedProfilePhoto.filePath } : {}),
       },
     });
@@ -572,6 +651,22 @@ export async function updateManagedAccountDetails(
       error: "ไม่สามารถบันทึกรูปโปรไฟล์ได้ กรุณาลองใหม่อีกครั้ง",
       success: "",
     };
+  }
+
+  if (targetUser.role === USER_ROLES.Student) {
+    await notifyUser(
+      userId,
+      "ข้อมูลบัญชีของคุณถูกอัปเดตโดยผู้ดูแลระบบ",
+      `${roleLabels[currentUser.role]}ได้อัปเดตข้อมูลบัญชีของคุณแล้ว กรุณาตรวจสอบข้อมูลล่าสุดในระบบ`,
+      {
+        email: {
+          recipientEmail: nextEmail,
+          subject: "ข้อมูลบัญชีของคุณถูกอัปเดตโดยผู้ดูแลระบบ",
+          actionPath: "/intern/profile",
+          actionLabel: "เปิดดูข้อมูลของฉัน",
+        },
+      },
+    );
   }
 
   revalidatePath("/intern/manage-users");
@@ -669,7 +764,7 @@ export async function updateManagedApplicationApproval(
   }
 
   const userId = String(formData.get("userId") ?? "");
-  const requestedApprovalStatus = String(formData.get("approvalStatus") ?? "");
+  const requestedStatus = String(formData.get("status") ?? "") as InternshipApplicationStatus;
 
   if (!userId) {
     return {
@@ -679,8 +774,10 @@ export async function updateManagedApplicationApproval(
   }
 
   if (
-    requestedApprovalStatus !== INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending &&
-    requestedApprovalStatus !== INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Approved
+    requestedStatus !== INTERNSHIP_APPLICATION_STATUSES.Pending &&
+    requestedStatus !== INTERNSHIP_APPLICATION_STATUSES.Rejected &&
+    requestedStatus !== INTERNSHIP_APPLICATION_STATUSES.Ongoing &&
+    requestedStatus !== INTERNSHIP_APPLICATION_STATUSES.Finished
   ) {
     return {
       error: "สถานะที่เลือกไม่ถูกต้อง",
@@ -692,11 +789,17 @@ export async function updateManagedApplicationApproval(
     where: { id: userId },
     select: {
       id: true,
+      title: true,
+      firstname: true,
+      lastname: true,
+      email: true,
       role: true,
       application: {
         select: {
           id: true,
+          status: true,
           approvedAt: true,
+          finishedAt: true,
         },
       },
     },
@@ -723,26 +826,45 @@ export async function updateManagedApplicationApproval(
     };
   }
 
+  if (targetUser.application.status === requestedStatus) {
+    return {
+      error: "สถานะที่เลือกตรงกับสถานะปัจจุบันอยู่แล้ว",
+      success: "",
+    };
+  }
+
+  const now = new Date();
+  const nextApprovedAt =
+    requestedStatus === INTERNSHIP_APPLICATION_STATUSES.Pending ||
+    requestedStatus === INTERNSHIP_APPLICATION_STATUSES.Rejected
+      ? null
+      : targetUser.application.approvedAt ?? now;
+  const nextFinishedAt =
+    requestedStatus === INTERNSHIP_APPLICATION_STATUSES.Finished ? now : null;
+
   await prisma.internshipApplication.update({
     where: { userId },
     data: {
-      approvalStatus: requestedApprovalStatus,
-      approvedAt:
-        requestedApprovalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Approved
-          ? targetUser.application.approvedAt ?? new Date()
-          : null,
+      status: requestedStatus,
+      approvedAt: nextApprovedAt,
+      finishedAt: nextFinishedAt,
       editedAfterApprovalAt: null,
     },
   });
 
-  const statusLabel =
-    requestedApprovalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Approved
-      ? "On-going (อนุมัติแล้ว)"
-      : "Pending (รอการตรวจสอบ)";
-  await createNotification(
+  const statusLabel = getLifecycleStatusLabel(requestedStatus);
+  await notifyUser(
     userId,
     "สถานะการฝึกงานของคุณเปลี่ยนแปลง",
     `ผู้ดูแลระบบได้อัปเดตสถานะการฝึกงานของคุณเป็น "${statusLabel}"`,
+    {
+      email: {
+        recipientEmail: targetUser.email,
+        subject: "สถานะการฝึกงานของคุณเปลี่ยนแปลง",
+        actionPath: "/intern/profile",
+        actionLabel: "ดูสถานะฝึกงานล่าสุด",
+      },
+    },
   );
 
   revalidatePath("/intern/manage-users");
@@ -753,9 +875,6 @@ export async function updateManagedApplicationApproval(
 
   return {
     error: "",
-    success:
-      requestedApprovalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Approved
-        ? "อนุมัติแบบฟอร์มและเปลี่ยนสถานะเป็น On-going เรียบร้อยแล้ว"
-        : "เปลี่ยนสถานะกลับเป็น Pending เรียบร้อยแล้ว",
+    success: `อัปเดตสถานะฝึกงานเป็น ${statusLabel} เรียบร้อยแล้ว`,
   };
 }

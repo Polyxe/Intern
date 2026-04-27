@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Briefcase, Edit3, Sparkles, User } from "lucide-react";
+import { Edit3, User } from "lucide-react";
 
 import { AccountProfileOverview } from "@/components/account-profile-overview";
 import { StudentProfileOverview } from "@/components/student-profile-overview";
@@ -45,17 +45,11 @@ export default async function InternProfilePage() {
   const canEditApplication = application ? canStudentEditApplication(application) : true;
 
   return (
-    <main className="flex-1 px-4 py-12 sm:px-6 lg:px-8">
+    <main className="page-shell" data-student-flow={isStudent ? true : undefined}>
       <div className="mx-auto max-w-5xl space-y-8">
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-gradient-brand p-8 text-white shadow-glow sm:p-10">
-          <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay [background:radial-gradient(circle_at_15%_20%,white,transparent_50%),radial-gradient(circle_at_85%_80%,white,transparent_45%)]" />
-
+        <section className="page-hero p-8 sm:p-10">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase ring-1 ring-white/25 backdrop-blur">
-                <User className="size-3.5" />
-                {isStudent ? "Intern Profile" : "Account Overview"}
-              </span>
 
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -80,37 +74,20 @@ export default async function InternProfilePage() {
               ) : null}
 
               {isStudent ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    href="/intern/application"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-5 text-sm font-semibold ring-1 ring-white/30 backdrop-blur transition hover:bg-white/20"
-                  >
-                    <Briefcase className="size-4" />
-                    ดูฟอร์มฝึกงาน
-                  </Link>
-
-                  <Button
-                    asChild
-                    size="lg"
-                    className="h-11 rounded-xl bg-gradient-accent px-5 text-sm font-bold text-white shadow-accent-glow hover:opacity-95"
-                  >
-                    <Link href="/intern/application">
-                      <Edit3 className="size-4" />
-                      {application ? (canEditApplication ? "แก้ไขโปรไฟล์" : "เปิดดูแบบอ่านอย่างเดียว") : "เริ่มกรอกโปรไฟล์"}
-                    </Link>
-                  </Button>
-                </div>
-              ) : canManageUsers ? (
                 <Button
                   asChild
                   size="lg"
                   className="h-11 rounded-xl bg-gradient-accent px-5 text-sm font-bold text-white shadow-accent-glow hover:opacity-95"
                 >
-                  <Link href="/intern/manage-users">
-                    <Sparkles className="size-4" />
-                    ไปยังแดชบอร์ดจัดการผู้ใช้
+                  <Link href="/intern/application">
+                    <Edit3 className="size-4" />
+                    {application ? (canEditApplication ? "แก้ไขข้อมูลฝึกงาน" : "เปิดดูข้อมูลฝึกงาน") : "เริ่มกรอกข้อมูลฝึกงาน"}
                   </Link>
                 </Button>
+              ) : canManageUsers ? (
+                <div className="rounded-2xl border border-white/16 bg-white/10 px-4 py-3 text-sm leading-6 text-white/78 backdrop-blur">
+                  ใช้แถบนำทางด้านบนเพื่อเปิดหน้า `จัดการผู้ใช้` และกลับมาที่บัญชีของคุณได้ตลอดเวลา
+                </div>
               ) : null}
             </div>
           </div>
@@ -132,10 +109,10 @@ export default async function InternProfilePage() {
         )}
 
         {canManageUsers ? (
-          <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-elegant backdrop-blur sm:p-10">
+          <section className="card-surface p-8 sm:p-10">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
-                <span className="inline-flex items-center rounded-full bg-[rgba(142,85,183,0.1)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
+                <span className="inline-flex items-center rounded-full bg-[color:var(--color-brand-surface)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
                   User Management
                 </span>
                 <h2 className="text-2xl font-semibold tracking-tight text-slate-950">แดชบอร์ดจัดการบัญชีผู้ใช้</h2>
@@ -144,13 +121,9 @@ export default async function InternProfilePage() {
                 </p>
               </div>
 
-              <Button
-                asChild
-                size="lg"
-                className="h-12 rounded-2xl bg-[linear-gradient(135deg,_#ff9248,_#f26a21)] px-6 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(242,106,33,0.28)] hover:brightness-105"
-              >
-                <Link href="/intern/manage-users">ไปยังแดชบอร์ด</Link>
-              </Button>
+              <div className="rounded-2xl border border-[color:var(--color-shell-border)] bg-white/70 px-4 py-3 text-sm leading-6 text-slate-600">
+                หน้า `จัดการผู้ใช้` ถูกผูกไว้ใน navbar แล้ว และจะแสดงสถานะ active เมื่อคุณเข้าไปทำงานต่อ
+              </div>
             </div>
           </section>
         ) : null}

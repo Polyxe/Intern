@@ -1,0 +1,1 @@
+ALTER TYPE "InternshipApplicationStatus" ADD VALUE IF NOT EXISTS 'Rejected';

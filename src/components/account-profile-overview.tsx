@@ -1,6 +1,7 @@
 import { CalendarDays, Mail, MapPin, ShieldCheck, User, type LucideIcon } from "lucide-react";
 
 import { formatDateForDisplay } from "@/lib/internship-application";
+import { getSexLabel } from "@/lib/sex";
 import { getDisplayName, roleLabels, type UserRole } from "@/lib/user-management";
 
 type AccountProfileOverviewProps = {
@@ -59,7 +60,7 @@ export function AccountProfileOverview({ heading, description, user }: AccountPr
           <DetailRow icon={User} label="ชื่อ - นามสกุล" value={displayValue(getDisplayName(user))} />
           <DetailRow icon={Mail} label="อีเมล" value={user.email} />
           <DetailRow icon={ShieldCheck} label="สิทธิ์การใช้งาน" value={roleLabels[user.role]} />
-          <DetailRow label="เพศ" value={displayValue(user.sex)} />
+          <DetailRow label="เพศ" value={displayValue(getSexLabel(user.sex))} />
           <DetailRow icon={CalendarDays} label="วันเกิด" value={user.birthDate ? formatDateForDisplay(user.birthDate) : "-"} />
           <DetailRow label="สถาบัน" value={displayValue(user.institution)} />
           <div className="md:col-span-2 xl:col-span-3">

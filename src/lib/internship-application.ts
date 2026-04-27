@@ -1,20 +1,92 @@
 import type { Prisma } from "@/generated/prisma/client";
 
-export const INTERNSHIP_APPLICATION_APPROVAL_STATUSES = {
+export const INTERNSHIP_APPLICATION_STATUSES = {
   Pending: "Pending",
-  Approved: "Approved",
+  Rejected: "Rejected",
+  Ongoing: "Ongoing",
+  Finished: "Finished",
 } as const;
 
-export type InternshipApplicationApprovalStatus =
-  (typeof INTERNSHIP_APPLICATION_APPROVAL_STATUSES)[keyof typeof INTERNSHIP_APPLICATION_APPROVAL_STATUSES];
+export type InternshipApplicationStatus =
+  (typeof INTERNSHIP_APPLICATION_STATUSES)[keyof typeof INTERNSHIP_APPLICATION_STATUSES];
 
-export const INTERNSHIP_STATUSES = {
-  Pending: "Pending",
-  Ongoing: "On-going",
-  Completed: "Completed",
+export const MANAGE_USER_ROLE_FILTERS = {
+  Student: "student",
+  Admin: "admin",
 } as const;
 
-export type InternshipStatus = (typeof INTERNSHIP_STATUSES)[keyof typeof INTERNSHIP_STATUSES];
+export type ManageUserRoleFilter = (typeof MANAGE_USER_ROLE_FILTERS)[keyof typeof MANAGE_USER_ROLE_FILTERS];
+
+export const STUDENT_STATUS_FILTERS = {
+  All: "all",
+  NoApplication: "no-application",
+  Pending: "pending",
+  Rejected: "rejected",
+  Ongoing: "on-going",
+  Finished: "finished",
+} as const;
+
+export type StudentStatusFilter = (typeof STUDENT_STATUS_FILTERS)[keyof typeof STUDENT_STATUS_FILTERS];
+
+export const studentStatusFilterOrder: StudentStatusFilter[] = [
+  STUDENT_STATUS_FILTERS.All,
+  STUDENT_STATUS_FILTERS.NoApplication,
+  STUDENT_STATUS_FILTERS.Pending,
+  STUDENT_STATUS_FILTERS.Rejected,
+  STUDENT_STATUS_FILTERS.Ongoing,
+  STUDENT_STATUS_FILTERS.Finished,
+];
+
+export const studentStatusFilterMeta: Record<
+  StudentStatusFilter,
+  {
+    label: string;
+    emptyStateLabel: string;
+    badgeClassName: string;
+    pillClassName: string;
+  }
+> = {
+  all: {
+    label: "ทั้งหมด",
+    emptyStateLabel: "ทั้งหมด",
+    badgeClassName: "border-slate-200 bg-slate-50 text-slate-700",
+    pillClassName: "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+  },
+  "no-application": {
+    label: "ยังไม่มีใบสมัคร",
+    emptyStateLabel: "ยังไม่มีใบสมัคร",
+    badgeClassName: "border-slate-200 bg-slate-50 text-slate-700",
+    pillClassName: "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+  },
+  pending: {
+    label: "รอตรวจสอบ",
+    emptyStateLabel: "รอตรวจสอบ",
+    badgeClassName:
+      "border-orange-200 bg-[rgba(242,106,33,0.12)] text-[color:var(--color-brand-orange-deep)]",
+    pillClassName:
+      "border-orange-200 bg-white text-[color:var(--color-brand-orange-deep)] hover:bg-[rgba(242,106,33,0.08)]",
+  },
+  rejected: {
+    label: "ถูกปฏิเสธ",
+    emptyStateLabel: "ถูกปฏิเสธ",
+    badgeClassName: "border-rose-200 bg-rose-50 text-rose-700",
+    pillClassName: "border-rose-200 bg-white text-rose-700 hover:bg-rose-50",
+  },
+  "on-going": {
+    label: "กำลังฝึกงาน",
+    emptyStateLabel: "กำลังฝึกงาน",
+    badgeClassName:
+      "border-[rgba(142,85,183,0.18)] bg-[rgba(142,85,183,0.12)] text-[color:var(--color-brand-violet-deep)]",
+    pillClassName:
+      "border-[rgba(142,85,183,0.2)] bg-white text-[color:var(--color-brand-violet-deep)] hover:bg-[rgba(142,85,183,0.08)]",
+  },
+  finished: {
+    label: "เสร็จสิ้น",
+    emptyStateLabel: "เสร็จสิ้น",
+    badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    pillClassName: "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50",
+  },
+};
 
 export const internshipApplicationSelect = {
   id: true,
@@ -40,8 +112,9 @@ export const internshipApplicationSelect = {
   emergencyContactRelationship: true,
   emergencyContactPhoneNumber: true,
   notes: true,
-  approvalStatus: true,
+  status: true,
   approvedAt: true,
+  finishedAt: true,
   editedAfterApprovalAt: true,
   attachments: {
     select: {
@@ -65,29 +138,37 @@ export type InternshipApplicationRecord = Prisma.InternshipApplicationGetPayload
 }>;
 
 export const internshipStatusMeta: Record<
-  InternshipStatus,
+  InternshipApplicationStatus,
   {
     label: string;
     description: string;
     badgeClassName: string;
+    headerBadgeClassName: string;
   }
 > = {
   Pending: {
-    label: "Pending",
+    label: studentStatusFilterMeta.pending.label,
     description: "รอการอนุมัติจากผู้ดูแลระบบก่อนเริ่มสถานะฝึกงาน",
-    badgeClassName:
-      "border-orange-200 bg-[rgba(242,106,33,0.12)] text-[color:var(--color-brand-orange-deep)]",
+    badgeClassName: studentStatusFilterMeta.pending.badgeClassName,
+    headerBadgeClassName: studentStatusFilterMeta.pending.pillClassName,
   },
-  "On-going": {
-    label: "On-going",
+  Rejected: {
+    label: studentStatusFilterMeta.rejected.label,
+    description: "แบบฟอร์มนี้ถูกปฏิเสธแล้ว นักศึกษาสามารถแก้ไขข้อมูลและส่งกลับเข้ารอตรวจสอบใหม่ได้",
+    badgeClassName: studentStatusFilterMeta.rejected.badgeClassName,
+    headerBadgeClassName: studentStatusFilterMeta.rejected.pillClassName,
+  },
+  Ongoing: {
+    label: studentStatusFilterMeta["on-going"].label,
     description: "แบบฟอร์มได้รับการอนุมัติและอยู่ในช่วงฝึกงาน",
-    badgeClassName:
-      "border-[rgba(142,85,183,0.18)] bg-[rgba(142,85,183,0.12)] text-[color:var(--color-brand-violet-deep)]",
+    badgeClassName: studentStatusFilterMeta["on-going"].badgeClassName,
+    headerBadgeClassName: studentStatusFilterMeta["on-going"].pillClassName,
   },
-  Completed: {
-    label: "Completed",
-    description: "สิ้นสุดช่วงฝึกงานแล้ว จึงปิดการแก้ไขข้อมูลอัตโนมัติ",
-    badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  Finished: {
+    label: studentStatusFilterMeta.finished.label,
+    description: "ผู้ดูแลระบบปิดสถานะฝึกงานแล้ว จึงปิดการแก้ไขข้อมูลอัตโนมัติ",
+    badgeClassName: studentStatusFilterMeta.finished.badgeClassName,
+    headerBadgeClassName: studentStatusFilterMeta.finished.pillClassName,
   },
 };
 
@@ -120,34 +201,110 @@ export function formatDateForDisplay(date: Date) {
   }).format(date);
 }
 
-export function hasInternshipEnded(endDate: Date, now = new Date()) {
-  return getUtcDateKey(now) > getUtcDateKey(endDate);
+export function getStudentStatusFilterForApplication(
+  application: Pick<InternshipApplicationRecord, "status"> | null,
+): StudentStatusFilter {
+  if (!application) {
+    return STUDENT_STATUS_FILTERS.NoApplication;
+  }
+
+  if (application.status === INTERNSHIP_APPLICATION_STATUSES.Pending) {
+    return STUDENT_STATUS_FILTERS.Pending;
+  }
+
+  if (application.status === INTERNSHIP_APPLICATION_STATUSES.Rejected) {
+    return STUDENT_STATUS_FILTERS.Rejected;
+  }
+
+  if (application.status === INTERNSHIP_APPLICATION_STATUSES.Ongoing) {
+    return STUDENT_STATUS_FILTERS.Ongoing;
+  }
+
+  return STUDENT_STATUS_FILTERS.Finished;
 }
 
 export function getInternshipStatus(
-  application: Pick<InternshipApplicationRecord, "approvalStatus" | "internshipEndDate">,
-  now = new Date(),
-): InternshipStatus {
-  if (application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending) {
-    return INTERNSHIP_STATUSES.Pending;
-  }
-
-  if (hasInternshipEnded(application.internshipEndDate, now)) {
-    return INTERNSHIP_STATUSES.Completed;
-  }
-
-  return INTERNSHIP_STATUSES.Ongoing;
+  application: Pick<InternshipApplicationRecord, "status">,
+): InternshipApplicationStatus {
+  return application.status;
 }
 
 export function canStudentEditApplication(
-  application: Pick<InternshipApplicationRecord, "approvalStatus" | "internshipEndDate">,
-  now = new Date(),
+  application: Pick<InternshipApplicationRecord, "status">,
 ) {
-  return getInternshipStatus(application, now) !== INTERNSHIP_STATUSES.Completed;
+  return application.status !== INTERNSHIP_APPLICATION_STATUSES.Finished;
+}
+
+export function isApprovedInternshipStatus(status: InternshipApplicationStatus) {
+  return status === INTERNSHIP_APPLICATION_STATUSES.Ongoing || status === INTERNSHIP_APPLICATION_STATUSES.Finished;
 }
 
 export function wasEditedAfterApproval(
   application: Pick<InternshipApplicationRecord, "editedAfterApprovalAt"> | null,
 ) {
   return Boolean(application?.editedAfterApprovalAt);
+}
+
+export function getManageUsersEmptyStateMessage(filters: {
+  role: ManageUserRoleFilter;
+  studentStatus: StudentStatusFilter;
+}) {
+  if (filters.role === MANAGE_USER_ROLE_FILTERS.Admin) {
+    return "ไม่พบบัญชีผู้ดูแลระบบในขณะนี้";
+  }
+
+  if (filters.studentStatus === STUDENT_STATUS_FILTERS.All) {
+    return "ไม่พบบัญชีนักศึกษาในขณะนี้";
+  }
+
+  return `ไม่พบบัญชีนักศึกษาที่อยู่ในสถานะ ${studentStatusFilterMeta[filters.studentStatus].emptyStateLabel}`;
+}
+
+export function getLifecycleStatusLabel(status: InternshipApplicationStatus) {
+  return internshipStatusMeta[status].label;
+}
+
+export function getStatusChangeConfirmationContent(
+  currentStatus: InternshipApplicationStatus,
+  nextStatus: InternshipApplicationStatus,
+) {
+  if (nextStatus === INTERNSHIP_APPLICATION_STATUSES.Pending) {
+    return {
+      title: "ยืนยันการเปลี่ยนสถานะกลับเป็นรอตรวจสอบ",
+      description:
+        currentStatus === INTERNSHIP_APPLICATION_STATUSES.Finished
+          ? "การเปลี่ยนกลับเป็นรอตรวจสอบจะเปิดรอบการพิจารณาใหม่ ล้างข้อมูลเวลาอนุมัติและเวลาเสร็จสิ้น และอนุญาตให้นักศึกษาแก้ไขข้อมูลได้อีกครั้ง"
+          : "การเปลี่ยนกลับเป็นรอตรวจสอบจะส่งแบบฟอร์มกลับเข้าสู่รอบการพิจารณาอีกครั้ง และล้างข้อมูลเวลาอนุมัติปัจจุบัน",
+      confirmLabel: "ยืนยันเป็นรอตรวจสอบ",
+    };
+  }
+
+  if (nextStatus === INTERNSHIP_APPLICATION_STATUSES.Rejected) {
+    return {
+      title: "ยืนยันการปฏิเสธแบบฟอร์มฝึกงาน",
+      description:
+        "เมื่อปฏิเสธแล้ว สถานะอนุมัติและเวลาเสร็จสิ้นจะถูกล้างออก นักศึกษาจะกลับมาแก้ไขข้อมูลได้ และต้องส่งแบบฟอร์มเข้ามาใหม่เพื่อให้ผู้ดูแลพิจารณาอีกครั้ง",
+      confirmLabel: "ยืนยันการปฏิเสธ",
+    };
+  }
+
+  if (nextStatus === INTERNSHIP_APPLICATION_STATUSES.Ongoing) {
+    return {
+      title: "ยืนยันการอนุมัติแบบฟอร์มฝึกงาน",
+      description:
+        currentStatus === INTERNSHIP_APPLICATION_STATUSES.Finished
+          ? "การเปลี่ยนกลับเป็นกำลังฝึกงานจะเปิดสถานะฝึกงานอีกครั้ง ล้างเวลาเสร็จสิ้น และอนุญาตให้นักศึกษาแก้ไขข้อมูลได้ตามปกติ"
+          : currentStatus === INTERNSHIP_APPLICATION_STATUSES.Rejected
+            ? "การอนุมัติจะล้างสถานะปฏิเสธเดิมและย้ายแบบฟอร์มเข้าสู่ช่วงกำลังฝึกงานทันที"
+            : "การเปลี่ยนสถานะนี้หมายถึงผู้ดูแลอนุมัติแบบฟอร์มแล้ว และนักศึกษาจะอยู่ในช่วงกำลังฝึกงานทันที",
+      confirmLabel: "ยืนยันการอนุมัติ",
+    };
+  }
+
+  return {
+    title: "ยืนยันการเปลี่ยนสถานะเป็นเสร็จสิ้น",
+    description:
+      "การเปลี่ยนสถานะเป็นเสร็จสิ้นจะบันทึกเวลาเสร็จสิ้น ล้างธงต้องติดตาม และล็อกการแก้ไขข้อมูลของนักศึกษาจนกว่าจะมีผู้ดูแลเปิดสถานะใหม่อีกครั้ง",
+    confirmLabel: "ยืนยันการเสร็จสิ้น",
+  };
 }

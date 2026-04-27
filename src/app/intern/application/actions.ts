@@ -5,13 +5,21 @@ import { redirect } from "next/navigation";
 
 import {
   canStudentEditApplication,
-  INTERNSHIP_APPLICATION_APPROVAL_STATUSES,
+  INTERNSHIP_APPLICATION_STATUSES,
+  isApprovedInternshipStatus,
   parseDateInput,
 } from "@/lib/internship-application";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
-import { createNotificationsForAdmins } from "@/lib/notifications";
+import {
+  isFutureDate,
+  isValidPhoneNumber,
+  isValidSingleDigitNumber,
+  isValidStudentId,
+} from "@/lib/form-validation";
+import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { getDisplayName } from "@/lib/user-management";
 import { USER_ROLES } from "@/lib/user-management";
 
 export type InternshipApplicationFormValues = {
@@ -45,10 +53,19 @@ export type InternshipApplicationFormValues = {
   notes: string;
 };
 
+export type InternshipApplicationFieldName =
+  | keyof InternshipApplicationFormValues
+  | "email"
+  | "profilePhoto"
+  | "attachments";
+
+export type InternshipApplicationFieldErrors = Partial<Record<InternshipApplicationFieldName, string>>;
+
 export type InternshipApplicationFormState = {
   error: string;
   success: string;
   values: InternshipApplicationFormValues;
+  fieldErrors: InternshipApplicationFieldErrors;
 };
 
 export type InternshipAttachmentActionState = {
@@ -59,6 +76,35 @@ const MAX_ATTACHMENT_COUNT = 5;
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
 const ALLOWED_PROFILE_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
+const REQUIRED_FIELD_MESSAGES: Record<keyof Omit<InternshipApplicationFormValues, "notes">, string> = {
+  title: "กรุณาระบุคำนำหน้า",
+  firstname: "กรุณาระบุชื่อ",
+  lastname: "กรุณาระบุนามสกุล",
+  sex: "กรุณาเลือกเพศ",
+  birthDate: "กรุณาระบุวันเกิด",
+  address: "กรุณาระบุที่อยู่",
+  institution: "กรุณาระบุสถาบัน",
+  studentId: "กรุณาระบุรหัสนักศึกษา",
+  phoneNumber: "กรุณาระบุเบอร์โทรศัพท์",
+  faculty: "กรุณาระบุคณะ",
+  program: "กรุณาระบุสาขา / หลักสูตร",
+  yearLevel: "กรุณาระบุชั้นปี",
+  internshipPosition: "กรุณาระบุตำแหน่งฝึกงาน",
+  companyName: "กรุณาระบุชื่อบริษัท / หน่วยงาน",
+  companyAddress: "กรุณาระบุที่อยู่บริษัท",
+  guidingProfessorFirstname: "กรุณาระบุชื่ออาจารย์นิเทศ",
+  guidingProfessorLastname: "กรุณาระบุนามสกุลอาจารย์นิเทศ",
+  guidingProfessorPhoneNumber: "กรุณาระบุเบอร์โทรอาจารย์นิเทศ",
+  companySupervisorName: "กรุณาระบุชื่อผู้ดูแลในสถานประกอบการ",
+  companySupervisorRole: "กรุณาระบุตำแหน่งผู้ดูแล",
+  companySupervisorEmail: "กรุณาระบุอีเมลผู้ดูแล",
+  companySupervisorPhoneNumber: "กรุณาระบุเบอร์โทรผู้ดูแล",
+  internshipStartDate: "กรุณาระบุวันที่เริ่มฝึกงาน",
+  internshipEndDate: "กรุณาระบุวันที่สิ้นสุดฝึกงาน",
+  emergencyContactName: "กรุณาระบุชื่อผู้ติดต่อฉุกเฉิน",
+  emergencyContactRelationship: "กรุณาระบุความสัมพันธ์ของผู้ติดต่อฉุกเฉิน",
+  emergencyContactPhoneNumber: "กรุณาระบุเบอร์โทรผู้ติดต่อฉุกเฉิน",
+};
 
 function buildFormValues(formData: FormData): InternshipApplicationFormValues {
   return {
@@ -103,11 +149,19 @@ function getFilesValue(formData: FormData, fieldName: string) {
   return formData.getAll(fieldName).filter((value): value is File => value instanceof File && value.size > 0);
 }
 
-function createState(values: InternshipApplicationFormValues, error = "", success = ""): InternshipApplicationFormState {
+function createState(
+  values: InternshipApplicationFormValues,
+  options?: {
+    error?: string;
+    success?: string;
+    fieldErrors?: InternshipApplicationFieldErrors;
+  },
+): InternshipApplicationFormState {
   return {
-    error,
-    success,
+    error: options?.error ?? "",
+    success: options?.success ?? "",
     values,
+    fieldErrors: options?.fieldErrors ?? {},
   };
 }
 
@@ -119,8 +173,143 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function hasStudentEmailDomain(email: string) {
-  return email.trim().toLowerCase().endsWith("@cmu.ac.th");
+function addFieldError(
+  fieldErrors: InternshipApplicationFieldErrors,
+  fieldName: InternshipApplicationFieldName,
+  message: string,
+) {
+  if (!fieldErrors[fieldName]) {
+    fieldErrors[fieldName] = message;
+  }
+}
+
+function createValidationState(
+  values: InternshipApplicationFormValues,
+  fieldErrors: InternshipApplicationFieldErrors,
+): InternshipApplicationFormState {
+  const uniqueMessages = [...new Set(Object.values(fieldErrors).filter(Boolean))];
+
+  return createState(values, {
+    error:
+      uniqueMessages.length <= 1
+        ? uniqueMessages[0] ?? "กรุณาตรวจสอบข้อมูลที่ระบุไว้ในแบบฟอร์มอีกครั้ง"
+        : "กรุณาตรวจสอบข้อมูลที่ระบุไว้ในแบบฟอร์มอีกครั้ง",
+    fieldErrors,
+  });
+}
+
+function validateInternshipApplication({
+  values,
+  hasExistingProfilePhoto,
+  existingAttachmentCount,
+  profilePhoto,
+  attachmentFiles,
+}: {
+  values: InternshipApplicationFormValues;
+  hasExistingProfilePhoto: boolean;
+  existingAttachmentCount: number;
+  profilePhoto: File | null;
+  attachmentFiles: File[];
+}) {
+  const fieldErrors: InternshipApplicationFieldErrors = {};
+
+  for (const [fieldName, message] of Object.entries(REQUIRED_FIELD_MESSAGES)) {
+    const typedFieldName = fieldName as keyof typeof REQUIRED_FIELD_MESSAGES;
+
+    if (!values[typedFieldName]) {
+      addFieldError(fieldErrors, typedFieldName, message);
+    }
+  }
+
+  if (values.companySupervisorEmail && !isValidEmail(values.companySupervisorEmail)) {
+    addFieldError(fieldErrors, "companySupervisorEmail", "อีเมลผู้ดูแลในสถานประกอบการไม่ถูกต้อง");
+  }
+
+  if (values.studentId && !isValidStudentId(values.studentId)) {
+    addFieldError(fieldErrors, "studentId", "รหัสนักศึกษาต้องเป็นตัวเลข 9 หลัก");
+  }
+
+  if (values.phoneNumber && !isValidPhoneNumber(values.phoneNumber)) {
+    addFieldError(fieldErrors, "phoneNumber", "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก");
+  }
+
+  if (values.guidingProfessorPhoneNumber && !isValidPhoneNumber(values.guidingProfessorPhoneNumber)) {
+    addFieldError(fieldErrors, "guidingProfessorPhoneNumber", "เบอร์โทรอาจารย์นิเทศต้องเป็นตัวเลข 9-10 หลัก");
+  }
+
+  if (values.companySupervisorPhoneNumber && !isValidPhoneNumber(values.companySupervisorPhoneNumber)) {
+    addFieldError(fieldErrors, "companySupervisorPhoneNumber", "เบอร์โทรผู้ดูแลต้องเป็นตัวเลข 9-10 หลัก");
+  }
+
+  if (values.emergencyContactPhoneNumber && !isValidPhoneNumber(values.emergencyContactPhoneNumber)) {
+    addFieldError(fieldErrors, "emergencyContactPhoneNumber", "เบอร์โทรผู้ติดต่อฉุกเฉินต้องเป็นตัวเลข 9-10 หลัก");
+  }
+
+  if (values.yearLevel && !isValidSingleDigitNumber(values.yearLevel)) {
+    addFieldError(fieldErrors, "yearLevel", "ชั้นปีต้องเป็นตัวเลข 1 หลัก");
+  }
+
+  const birthDate = values.birthDate ? parseDateInput(values.birthDate) : null;
+
+  if (values.birthDate) {
+    if (!birthDate) {
+      addFieldError(fieldErrors, "birthDate", "กรุณาระบุวันเกิดให้ถูกต้อง");
+    } else if (isFutureDate(birthDate)) {
+      addFieldError(fieldErrors, "birthDate", "วันเกิดต้องไม่เป็นวันที่ในอนาคต");
+    }
+  }
+
+  const internshipStartDate = values.internshipStartDate ? parseDateInput(values.internshipStartDate) : null;
+  const internshipEndDate = values.internshipEndDate ? parseDateInput(values.internshipEndDate) : null;
+
+  if (values.internshipStartDate && !internshipStartDate) {
+    addFieldError(fieldErrors, "internshipStartDate", "กรุณาระบุวันที่เริ่มฝึกงานให้ถูกต้อง");
+  }
+
+  if (values.internshipEndDate && !internshipEndDate) {
+    addFieldError(fieldErrors, "internshipEndDate", "กรุณาระบุวันที่สิ้นสุดฝึกงานให้ถูกต้อง");
+  }
+
+  if (internshipStartDate && internshipEndDate && internshipEndDate < internshipStartDate) {
+    addFieldError(fieldErrors, "internshipEndDate", "วันที่สิ้นสุดฝึกงานต้องไม่ก่อนวันที่เริ่มต้น");
+  }
+
+  if (!hasExistingProfilePhoto && !profilePhoto) {
+    addFieldError(fieldErrors, "profilePhoto", "กรุณาอัปโหลดรูปโปรไฟล์ก่อนบันทึกแบบฟอร์ม");
+  }
+
+  if (existingAttachmentCount + attachmentFiles.length > MAX_ATTACHMENT_COUNT) {
+    addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบทั้งหมดต้องมีไม่เกิน 5 ไฟล์");
+  }
+
+  if (profilePhoto) {
+    if (!ALLOWED_PROFILE_MIME_TYPES.has(profilePhoto.type)) {
+      addFieldError(fieldErrors, "profilePhoto", "รูปโปรไฟล์ต้องเป็นไฟล์ PNG หรือ JPG เท่านั้น");
+    }
+
+    if (profilePhoto.size > MAX_FILE_SIZE_BYTES) {
+      addFieldError(fieldErrors, "profilePhoto", "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB");
+    }
+  }
+
+  for (const attachment of attachmentFiles) {
+    if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(attachment.type)) {
+      addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบต้องเป็น PDF, PNG หรือ JPG เท่านั้น");
+      break;
+    }
+
+    if (attachment.size > MAX_FILE_SIZE_BYTES) {
+      addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB");
+      break;
+    }
+  }
+
+  return {
+    fieldErrors,
+    birthDate,
+    internshipStartDate,
+    internshipEndDate,
+  };
 }
 
 export async function saveInternshipApplication(
@@ -131,72 +320,15 @@ export async function saveInternshipApplication(
   const values = buildFormValues(formData);
 
   if (!currentUser || currentUser.role !== USER_ROLES.Student) {
-    return createState(values, "เฉพาะบัญชีนักศึกษาเท่านั้นที่ส่งแบบฟอร์มฝึกงานได้");
+    return createState(values, { error: "เฉพาะบัญชีนักศึกษาเท่านั้นที่ส่งแบบฟอร์มฝึกงานได้" });
   }
 
   if (!currentUser.acceptedTermsAt) {
-    return createState(values, "กรุณายอมรับข้อตกลงการใช้งานก่อนกรอกแบบฟอร์มฝึกงาน");
-  }
-
-  if (!hasStudentEmailDomain(currentUser.email)) {
-    return createState(values, "อีเมลนักศึกษาต้องเป็นโดเมน @cmu.ac.th กรุณาติดต่อผู้ดูแลระบบเพื่อแก้ไขข้อมูลบัญชี");
+    return createState(values, { error: "กรุณายอมรับข้อตกลงการใช้งานก่อนกรอกแบบฟอร์มฝึกงาน" });
   }
 
   const profilePhoto = getFileValue(formData, "profilePhoto");
   const attachmentFiles = getFilesValue(formData, "attachments");
-
-  if (
-    !values.title ||
-    !values.firstname ||
-    !values.lastname ||
-    !values.sex ||
-    !values.birthDate ||
-    !values.address ||
-    !values.institution ||
-    !values.studentId ||
-    !values.phoneNumber ||
-    !values.faculty ||
-    !values.program ||
-    !values.yearLevel ||
-    !values.internshipPosition ||
-    !values.companyName ||
-    !values.companyAddress ||
-    !values.guidingProfessorFirstname ||
-    !values.guidingProfessorLastname ||
-    !values.guidingProfessorPhoneNumber ||
-    !values.companySupervisorName ||
-    !values.companySupervisorRole ||
-    !values.companySupervisorEmail ||
-    !values.companySupervisorPhoneNumber ||
-    !values.internshipStartDate ||
-    !values.internshipEndDate ||
-    !values.emergencyContactName ||
-    !values.emergencyContactRelationship ||
-    !values.emergencyContactPhoneNumber
-  ) {
-    return createState(values, "กรุณากรอกข้อมูลที่จำเป็นให้ครบทุกช่องก่อนบันทึก");
-  }
-
-  if (!isValidEmail(values.companySupervisorEmail)) {
-    return createState(values, "อีเมลผู้ดูแลในสถานประกอบการไม่ถูกต้อง");
-  }
-
-  const birthDate = parseDateInput(values.birthDate);
-
-  if (!birthDate) {
-    return createState(values, "กรุณาระบุวันเกิดให้ถูกต้อง");
-  }
-
-  const internshipStartDate = parseDateInput(values.internshipStartDate);
-  const internshipEndDate = parseDateInput(values.internshipEndDate);
-
-  if (!internshipStartDate || !internshipEndDate) {
-    return createState(values, "กรุณาระบุวันที่เริ่มและสิ้นสุดฝึกงานให้ถูกต้อง");
-  }
-
-  if (internshipEndDate < internshipStartDate) {
-    return createState(values, "วันที่สิ้นสุดฝึกงานต้องไม่ก่อนวันที่เริ่มต้น");
-  }
 
   const existingUser = await prisma.user.findUnique({
     where: { id: currentUser.id },
@@ -205,9 +337,9 @@ export async function saveInternshipApplication(
       application: {
         select: {
           id: true,
-          approvalStatus: true,
-          internshipEndDate: true,
+          status: true,
           approvedAt: true,
+          finishedAt: true,
           editedAfterApprovalAt: true,
           attachments: {
             select: {
@@ -223,37 +355,29 @@ export async function saveInternshipApplication(
   const existingApplication = existingUser?.application ?? null;
 
   if (existingApplication && !canStudentEditApplication(existingApplication)) {
-    return createState(values, "ไม่สามารถแก้ไขข้อมูลได้อีก เนื่องจากสถานะฝึกงานเสร็จสิ้นแล้ว");
-  }
-
-  if (!existingUser?.profileImagePath && !profilePhoto) {
-    return createState(values, "กรุณาอัปโหลดรูปโปรไฟล์ก่อนบันทึกแบบฟอร์ม");
+    return createState(values, { error: "ไม่สามารถแก้ไขข้อมูลได้อีก เนื่องจากสถานะฝึกงานเสร็จสิ้นแล้ว" });
   }
 
   const existingAttachmentCount = existingApplication?.attachments.length ?? 0;
 
-  if (existingAttachmentCount + attachmentFiles.length > MAX_ATTACHMENT_COUNT) {
-    return createState(values, "ไฟล์ประกอบทั้งหมดต้องมีไม่เกิน 5 ไฟล์");
+  const validation = validateInternshipApplication({
+    values,
+    hasExistingProfilePhoto: Boolean(existingUser?.profileImagePath),
+    existingAttachmentCount,
+    profilePhoto,
+    attachmentFiles,
+  });
+
+  if (Object.keys(validation.fieldErrors).length > 0) {
+    return createValidationState(values, validation.fieldErrors);
   }
 
-  if (profilePhoto) {
-    if (!ALLOWED_PROFILE_MIME_TYPES.has(profilePhoto.type)) {
-      return createState(values, "รูปโปรไฟล์ต้องเป็นไฟล์ PNG หรือ JPG เท่านั้น");
-    }
+  const birthDate = validation.birthDate;
+  const internshipStartDate = validation.internshipStartDate;
+  const internshipEndDate = validation.internshipEndDate;
 
-    if (profilePhoto.size > MAX_FILE_SIZE_BYTES) {
-      return createState(values, "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB");
-    }
-  }
-
-  for (const attachment of attachmentFiles) {
-    if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(attachment.type)) {
-      return createState(values, "ไฟล์ประกอบต้องเป็น PDF, PNG หรือ JPG เท่านั้น");
-    }
-
-    if (attachment.size > MAX_FILE_SIZE_BYTES) {
-      return createState(values, "ไฟล์ประกอบแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB");
-    }
+  if (!birthDate || !internshipStartDate || !internshipEndDate) {
+    return createState(values, { error: "กรุณาตรวจสอบข้อมูลวันที่ในแบบฟอร์มอีกครั้ง" });
   }
 
   const newlySavedFilePaths: string[] = [];
@@ -279,8 +403,7 @@ export async function saveInternshipApplication(
 
     const oldProfileImagePath = existingUser?.profileImagePath ?? null;
     const editedAfterApprovalAt =
-      existingApplication?.approvalStatus &&
-      existingApplication.approvalStatus !== INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
+      existingApplication?.status && isApprovedInternshipStatus(existingApplication.status)
         ? new Date()
         : existingApplication?.editedAfterApprovalAt ?? null;
 
@@ -323,6 +446,15 @@ export async function saveInternshipApplication(
           emergencyContactRelationship: values.emergencyContactRelationship,
           emergencyContactPhoneNumber: values.emergencyContactPhoneNumber,
           notes: values.notes || null,
+          status:
+            existingApplication?.status === INTERNSHIP_APPLICATION_STATUSES.Pending
+              ? existingApplication.status
+              : INTERNSHIP_APPLICATION_STATUSES.Pending,
+          approvedAt:
+            existingApplication?.status === INTERNSHIP_APPLICATION_STATUSES.Pending
+              ? existingApplication.approvedAt ?? null
+              : null,
+          finishedAt: null,
           editedAfterApprovalAt,
         },
         create: {
@@ -348,7 +480,9 @@ export async function saveInternshipApplication(
           emergencyContactRelationship: values.emergencyContactRelationship,
           emergencyContactPhoneNumber: values.emergencyContactPhoneNumber,
           notes: values.notes || null,
-          approvalStatus: INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending,
+          status: INTERNSHIP_APPLICATION_STATUSES.Pending,
+          approvedAt: null,
+          finishedAt: null,
           editedAfterApprovalAt: null,
         },
         select: {
@@ -373,18 +507,39 @@ export async function saveInternshipApplication(
       await deleteStoredFiles([oldProfileImagePath]);
     }
 
-    // Notify admins when a student edits an existing application
-    if (existingApplication) {
-      const studentName = `${values.firstname} ${values.lastname}`.trim();
-      await createNotificationsForAdmins(
-        "นักศึกษาแก้ไขข้อมูลฝึกงาน",
-        `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงาน กรุณาตรวจสอบและอัปเดตสถานะหากจำเป็น`,
+    if (
+      existingApplication?.status &&
+      existingApplication.status !== INTERNSHIP_APPLICATION_STATUSES.Pending
+    ) {
+      const studentName = getDisplayName({
+        title: values.title,
+        firstname: values.firstname,
+        lastname: values.lastname,
+      });
+
+      const notificationTitle = isApprovedInternshipStatus(existingApplication.status)
+        ? "นักศึกษาแก้ไขข้อมูลฝึกงานหลังการอนุมัติ"
+        : "นักศึกษาแก้ไขแบบฟอร์มที่ถูกปฏิเสธและส่งกลับใหม่";
+      const notificationMessage = isApprovedInternshipStatus(existingApplication.status)
+        ? `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงานหลังการอนุมัติ ระบบได้ส่งคำขอกลับเข้าสู่สถานะรอตรวจสอบแล้ว`
+        : `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงานที่ถูกปฏิเสธ และส่งกลับเข้าสู่สถานะรอตรวจสอบแล้ว`;
+
+      await notifyAdmins(
+        notificationTitle,
+        notificationMessage,
+        {
+          email: {
+            subject: notificationTitle,
+            actionPath: `/intern/manage-users/${currentUser.id}`,
+            actionLabel: "เปิดหน้ารายละเอียดนักศึกษา",
+          },
+        },
       );
     }
   } catch {
     await deleteStoredFiles(newlySavedFilePaths);
 
-    return createState(values, "ไม่สามารถบันทึกไฟล์อัปโหลดได้ กรุณาลองใหม่อีกครั้ง");
+    return createState(values, { error: "ไม่สามารถบันทึกไฟล์อัปโหลดได้ กรุณาลองใหม่อีกครั้ง" });
   }
 
   revalidatePath("/intern/application");
@@ -429,8 +584,9 @@ export async function deleteStudentAttachment(
       application: {
         select: {
           userId: true,
-          approvalStatus: true,
-          internshipEndDate: true,
+          status: true,
+          approvedAt: true,
+          finishedAt: true,
           editedAfterApprovalAt: true,
         },
       },
@@ -457,21 +613,45 @@ export async function deleteStudentAttachment(
     await transaction.internshipApplication.update({
       where: { userId: currentUser.id },
       data: {
-        approvalStatus:
-          attachment.application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
-            ? attachment.application.approvalStatus
-            : INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending,
-        approvedAt:
-          attachment.application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending ? undefined : null,
+        status:
+          attachment.application.status === INTERNSHIP_APPLICATION_STATUSES.Pending
+            ? attachment.application.status
+            : INTERNSHIP_APPLICATION_STATUSES.Pending,
+        approvedAt: attachment.application.status === INTERNSHIP_APPLICATION_STATUSES.Pending ? undefined : null,
+        finishedAt: null,
         editedAfterApprovalAt:
-          attachment.application.approvalStatus === INTERNSHIP_APPLICATION_APPROVAL_STATUSES.Pending
+          attachment.application.status === INTERNSHIP_APPLICATION_STATUSES.Pending
             ? attachment.application.editedAfterApprovalAt ?? null
-            : new Date(),
+            : isApprovedInternshipStatus(attachment.application.status)
+              ? new Date()
+              : null,
       },
     });
   });
 
   await deleteStoredFiles([attachment.filePath]);
+
+  if (attachment.application.status !== INTERNSHIP_APPLICATION_STATUSES.Pending) {
+    const studentName = getDisplayName(currentUser);
+    const notificationTitle = isApprovedInternshipStatus(attachment.application.status)
+      ? "นักศึกษาแก้ไขข้อมูลฝึกงานหลังการอนุมัติ"
+      : "นักศึกษาแก้ไขแบบฟอร์มที่ถูกปฏิเสธและส่งกลับใหม่";
+    const notificationMessage = isApprovedInternshipStatus(attachment.application.status)
+      ? `${studentName} ได้ลบไฟล์แนบในแบบฟอร์มฝึกงานหลังการอนุมัติ ระบบได้ส่งคำขอกลับเข้าสู่สถานะรอตรวจสอบแล้ว`
+      : `${studentName} ได้ลบไฟล์แนบในแบบฟอร์มฝึกงานที่ถูกปฏิเสธ และส่งกลับเข้าสู่สถานะรอตรวจสอบแล้ว`;
+
+    await notifyAdmins(
+      notificationTitle,
+      notificationMessage,
+      {
+        email: {
+          subject: notificationTitle,
+          actionPath: `/intern/manage-users/${currentUser.id}`,
+          actionLabel: "เปิดหน้ารายละเอียดนักศึกษา",
+        },
+      },
+    );
+  }
 
   revalidatePath("/intern/application");
   revalidatePath("/intern/profile");

@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 import { formatDateForInput } from "@/lib/internship-application";
+import { normalizeSexValue, sexOptions } from "@/lib/sex";
 
 import { updateManagedAccountDetails, type ManageUsersState } from "./actions";
 
@@ -23,7 +24,6 @@ type AccountDetailsFormProps = {
     profileImagePath?: string | null;
   };
   canEditEmail: boolean;
-  canEditPassword: boolean;
   canEditProfileImage: boolean;
 };
 
@@ -37,8 +37,6 @@ const inputClassName =
 
 const textareaClassName =
   "min-h-28 w-full rounded-2xl border border-[color:var(--color-shell-border)] bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[color:var(--color-brand-violet-deep)] focus:ring-4 focus:ring-[rgba(142,85,183,0.12)]";
-
-const sexOptions = ["Male", "Female", "Other"];
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -76,8 +74,9 @@ function Field({
   );
 }
 
-export function AccountDetailsForm({ user, canEditEmail, canEditPassword, canEditProfileImage }: AccountDetailsFormProps) {
+export function AccountDetailsForm({ user, canEditEmail, canEditProfileImage }: AccountDetailsFormProps) {
   const [state, formAction] = useActionState(updateManagedAccountDetails, initialState);
+  const today = formatDateForInput(new Date());
 
   return (
     <form action={formAction} className="space-y-5">
@@ -130,11 +129,11 @@ export function AccountDetailsForm({ user, canEditEmail, canEditPassword, canEdi
             <input id="lastname" name="lastname" type="text" defaultValue={user.lastname} className={inputClassName} />
           </Field>
           <Field label="เพศ" htmlFor="sex">
-            <select id="sex" name="sex" defaultValue={user.sex ?? ""} className={inputClassName}>
+            <select id="sex" name="sex" defaultValue={normalizeSexValue(user.sex)} className={inputClassName}>
               <option value="">ยังไม่ระบุ</option>
               {sexOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -145,6 +144,7 @@ export function AccountDetailsForm({ user, canEditEmail, canEditPassword, canEdi
               name="birthDate"
               type="date"
               defaultValue={user.birthDate ? formatDateForInput(user.birthDate) : undefined}
+              max={today}
               className={inputClassName}
             />
           </Field>
@@ -158,21 +158,6 @@ export function AccountDetailsForm({ user, canEditEmail, canEditPassword, canEdi
               className={canEditEmail ? inputClassName : `${inputClassName} bg-slate-50 text-slate-500`}
               required
             />
-          </Field>
-          <Field label={canEditPassword ? "ตั้งรหัสผ่านใหม่" : "รหัสผ่าน"} htmlFor="password">
-            {canEditPassword ? (
-              <input
-                id="password"
-                name="password"
-                type="password"
-                minLength={8}
-                autoComplete="new-password"
-                placeholder="เว้นว่างไว้หากไม่ต้องการเปลี่ยน"
-                className={inputClassName}
-              />
-            ) : (
-              <input id="password" type="password" value="********" readOnly className={`${inputClassName} bg-slate-50 text-slate-500`} />
-            )}
           </Field>
           <Field label="สถาบัน" htmlFor="institution">
             <input id="institution" name="institution" type="text" defaultValue={user.institution ?? undefined} className={inputClassName} />

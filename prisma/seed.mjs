@@ -23,35 +23,45 @@ async function main() {
     throw new Error("DATABASE_URL is not set.");
   }
 
+  const seededSuperadmins = [
+    {
+      title: "คุณ",
+      firstname: "Boaz",
+      lastname: "",
+      email: normalizeEmail("boazpolyjolax39@gmail.com"),
+    },
+/*    {
+      title: "",
+      firstname: "",
+      lastname: "",
+      email: normalizeEmail("polnapak_jantha@cmu.ac.th"),
+    },*/
+  ];
+
   const client = new Client({ connectionString: process.env.DATABASE_URL });
 
   await client.connect();
 
   try {
-    await client.query(
-      `
-        INSERT INTO "User" ("id", "title", "firstname", "lastname", "email", "password", "role", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6::"UserRole", NOW(), NOW())
-        ON CONFLICT ("email")
-        DO UPDATE SET
-          "title" = EXCLUDED."title",
-          "firstname" = EXCLUDED."firstname",
-          "lastname" = EXCLUDED."lastname",
-          "password" = EXCLUDED."password",
-          "role" = EXCLUDED."role",
-          "updatedAt" = NOW()
-      `,
-      [
-        "คุณ",
-        "Nupong",
-        "Superadmin",
-        normalizeEmail("nupong.pr@cmu.ac.th"),
-        hashPassword("admin123"),
-        "Superadmin",
-      ],
-    );
+    for (const user of seededSuperadmins) {
+      await client.query(
+        `
+          INSERT INTO "User" ("id", "title", "firstname", "lastname", "email", "password", "role", "createdAt", "updatedAt")
+          VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6::"UserRole", NOW(), NOW())
+          ON CONFLICT ("email")
+          DO UPDATE SET
+            "title" = EXCLUDED."title",
+            "firstname" = EXCLUDED."firstname",
+            "lastname" = EXCLUDED."lastname",
+            "password" = EXCLUDED."password",
+            "role" = EXCLUDED."role",
+            "updatedAt" = NOW()
+        `,
+        [user.title, user.firstname, user.lastname, user.email, hashPassword("admin123"), "Superadmin"],
+      );
 
-    console.log("Seeded superadmin user.");
+      console.log(`Seeded superadmin user: ${user.email}`);
+    }
   } finally {
     await client.end();
   }

@@ -1,6 +1,7 @@
 import {
   Briefcase,
   CalendarDays,
+  Download,
   FileText,
   GraduationCap,
   Mail,
@@ -163,24 +164,40 @@ export function InternshipApplicationOverview({
         {hasAttachments ? (
           <div className="relative mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {application.attachments.map((attachment) => (
-              <a
+              <div
                 key={attachment.id}
-                href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)]"
+                className="group rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)] hover:bg-[color:var(--color-brand-violet-deep)]"
               >
                 <div className="flex items-start gap-3">
-                  <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+                  <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)] group-hover:bg-white/16 group-hover:text-white group-hover:ring-white/20">
                     <FileText className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-950">{attachment.fileName}</p>
-                    <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">{attachment.mimeType}</p>
-                    <p className="mt-3 text-sm text-slate-600">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                    <p className="text-sm font-semibold text-slate-950 group-hover:text-white">{attachment.fileName}</p>
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-500 group-hover:text-white/72">{attachment.mimeType}</p>
+                    <p className="mt-3 text-sm text-slate-600 group-hover:text-white/82">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
                   </div>
                 </div>
-              </a>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <a
+                    href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-full border border-[color:var(--color-shell-border)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] transition hover:border-white/30 hover:bg-white/90 group-hover:border-white/20 group-hover:bg-white/12 group-hover:text-white"
+                  >
+                    เปิดไฟล์
+                  </a>
+                  <a
+                    href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
+                    download={attachment.fileName}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-3 py-2 text-xs font-semibold text-white shadow-accent-glow transition hover:opacity-95"
+                  >
+                    <Download className="size-3.5" />
+                    ดาวน์โหลด
+                  </a>
+                </div>
+              </div>
             ))}
           </div>
         ) : (

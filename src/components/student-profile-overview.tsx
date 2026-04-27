@@ -3,6 +3,7 @@ import {
   Briefcase,
   CalendarDays,
   Clock3,
+  Download,
   FileText,
   GraduationCap,
   Mail,
@@ -20,6 +21,7 @@ import {
   wasEditedAfterApproval,
 } from "@/lib/internship-application";
 import { normalizePublicUploadPath } from "@/lib/public-paths";
+import { getSexLabel } from "@/lib/sex";
 import { roleLabels, type UserRole } from "@/lib/user-management";
 
 type StudentProfileOverviewProps = {
@@ -136,7 +138,7 @@ function DetailRow({
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--color-shell-border)] bg-white/80 px-4 py-3">
       {Icon ? (
-        <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+        <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)]">
           <Icon className="size-4" />
         </div>
       ) : null}
@@ -167,7 +169,7 @@ export function StudentProfileOverview({ heading, description, user, application
       <div className="grid gap-6 lg:grid-cols-5">
         <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant lg:col-span-2">
           <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">สถานะการอนุมัติฟอร์ม</p>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">สถานะฝึกงาน</p>
           <div className="mt-3 flex items-center gap-3">
             {statusMeta ? (
               <span className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
@@ -199,7 +201,7 @@ export function StudentProfileOverview({ heading, description, user, application
                 {progress.phase === "unknown" && "เพิ่มวันที่เริ่มและสิ้นสุดเพื่อให้ระบบคำนวณความคืบหน้าได้"}
               </p>
             </div>
-            <span className="hidden rounded-full bg-gradient-brand-soft px-3 py-1 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)] sm:inline-block">
+            <span className="hidden rounded-full bg-gradient-brand-soft px-3 py-1 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)] sm:inline-block">
               {application?.internshipStartDate ? formatDateForDisplay(application.internshipStartDate) : "-"} →{" "}
               {application?.internshipEndDate ? formatDateForDisplay(application.internshipEndDate) : "-"}
             </span>
@@ -226,7 +228,7 @@ export function StudentProfileOverview({ heading, description, user, application
       <div className="grid gap-6 md:grid-cols-2">
         <DetailCard icon={User} title={heading} description={description}>
           <DetailRow icon={User} label="ชื่อ - นามสกุล" value={displayValue(`${user.title} ${user.firstname} ${user.lastname}`.trim())} />
-          <DetailRow label="เพศ" value={displayValue(user.sex)} />
+          <DetailRow label="เพศ" value={displayValue(getSexLabel(user.sex))} />
           <DetailRow icon={CalendarDays} label="วันเกิด" value={user.birthDate ? formatDateForDisplay(user.birthDate) : "-"} />
           <DetailRow icon={Mail} label="อีเมล" value={user.email} />
           <DetailRow label="สถาบัน" value={displayValue(user.institution)} />
@@ -270,7 +272,7 @@ export function StudentProfileOverview({ heading, description, user, application
             <h2 className="text-lg font-semibold tracking-tight text-slate-950">ไฟล์ประกอบการสมัคร</h2>
             <p className="mt-1 text-sm text-slate-500">เอกสารที่แนบไว้ในโปรไฟล์นักศึกษาและพร้อมเปิดดูจากพื้นที่สาธารณะของระบบ</p>
           </div>
-          <div className="inline-flex w-fit items-center rounded-full bg-gradient-brand-soft px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+          <div className="inline-flex w-fit items-center rounded-full bg-gradient-brand-soft px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)]">
             ทั้งหมด {application?.attachments.length ?? 0} ไฟล์
           </div>
         </div>
@@ -278,24 +280,40 @@ export function StudentProfileOverview({ heading, description, user, application
         {application?.attachments.length ? (
           <div className="relative mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {application.attachments.map((attachment) => (
-              <a
+              <div
                 key={attachment.id}
-                href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)]"
+                className="group rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)] hover:bg-[color:var(--color-brand-violet-deep)]"
               >
                 <div className="flex items-start gap-3">
-                  <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)]">
+                  <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)] group-hover:bg-white/16 group-hover:text-white group-hover:ring-white/20">
                     <FileText className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-950">{attachment.fileName}</p>
-                    <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">{attachment.mimeType}</p>
-                    <p className="mt-3 text-sm text-slate-600">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                    <p className="truncate text-sm font-semibold text-slate-950 group-hover:text-white">{attachment.fileName}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500 group-hover:text-white/70">{attachment.mimeType}</p>
+                    <p className="mt-3 text-sm text-slate-600 group-hover:text-white/80">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
                   </div>
                 </div>
-              </a>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <a
+                    href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-full border border-[color:var(--color-shell-border)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] transition hover:border-white/30 hover:bg-white/90 group-hover:border-white/20 group-hover:bg-white/12 group-hover:text-white"
+                  >
+                    เปิดไฟล์
+                  </a>
+                  <a
+                    href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
+                    download={attachment.fileName}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-3 py-2 text-xs font-semibold text-white shadow-accent-glow transition hover:opacity-95"
+                  >
+                    <Download className="size-3.5" />
+                    ดาวน์โหลด
+                  </a>
+                </div>
+              </div>
             ))}
           </div>
         ) : (

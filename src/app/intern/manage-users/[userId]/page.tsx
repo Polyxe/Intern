@@ -1,27 +1,45 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, FileText, PencilLine, ShieldCheck } from "lucide-react";
 
 import { AccountProfileOverview } from "@/components/account-profile-overview";
+import { ClearSearchParamOnce } from "@/components/clear-search-param-once";
 import { StudentProfileOverview } from "@/components/student-profile-overview";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
-import { internshipApplicationSelect } from "@/lib/internship-application";
+import {
+  getInternshipStatus,
+  internshipApplicationSelect,
+  internshipStatusMeta,
+} from "@/lib/internship-application";
+import {
+  appendReturnTo,
+  getCanonicalManageUsersHref,
+  getValidatedManageUsersReturnTo,
+} from "@/lib/manage-users-routing";
 import { prisma } from "@/lib/prisma";
 import {
   canAccessUserManagement,
+  canManagerEditUser,
   canManagerEditManagedAccount,
   canManagerViewUser,
   getDisplayName,
   roleLabels,
 } from "@/lib/user-management";
 
+import { ApplicationReviewForm } from "../application-review-form";
+
 type ManageUserDetailPageProps = {
   params: Promise<{
     userId: string;
   }>;
+  searchParams?: Promise<{
+    created?: string;
+    returnTo?: string;
+  }>;
 };
 
-export default async function ManageUserDetailPage({ params }: ManageUserDetailPageProps) {
+export default async function ManageUserDetailPage({ params, searchParams }: ManageUserDetailPageProps) {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
@@ -33,6 +51,10 @@ export default async function ManageUserDetailPage({ params }: ManageUserDetailP
   }
 
   const { userId } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const created = resolvedSearchParams.created === "1";
+  const returnTo = getValidatedManageUsersReturnTo(resolvedSearchParams.returnTo);
+  const backToListHref = returnTo ?? getCanonicalManageUsersHref(currentUser.role);
   const managedUser = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -59,53 +81,112 @@ export default async function ManageUserDetailPage({ params }: ManageUserDetailP
   }
 
   const canEditAccount = canManagerEditManagedAccount(currentUser.role, managedUser.role, { isSelf });
+  const canReviewApplication =
+    Boolean(managedUser.application) && canManagerEditUser(currentUser.role, managedUser.role);
+  const editHref = appendReturnTo(`/intern/manage-users/${managedUser.id}/edit`, returnTo);
+  const applicationStatus = managedUser.application ? getInternshipStatus(managedUser.application) : null;
+  const applicationStatusMeta = applicationStatus ? internshipStatusMeta[applicationStatus] : null;
 
   return (
-    <main className="flex-1 px-4 py-12 sm:px-6 lg:px-8">
+    <main className="page-shell">
       <div className="mx-auto max-w-6xl space-y-8">
-        <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_22px_60px_rgba(112,90,138,0.14)] backdrop-blur sm:p-10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <span className="inline-flex items-center rounded-full bg-[rgba(142,85,183,0.1)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
-                Account Details
+        {created ? <ClearSearchParamOnce param="created" /> : null}
+
+        {created ? (
+          <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50/90 px-5 py-4 text-sm font-semibold text-emerald-800 shadow-sm">
+            สร้างบัญชีผู้ใช้เรียบร้อยแล้ว
+          </div>
+        ) : null}
+
+        <section className="page-hero p-8 sm:p-10">
+          <div className="relative flex flex-col gap-6">
+            <div className="space-y-4">
+              <span className="section-kicker bg-white/14 text-white ring-white/20">
+                <FileText className="size-3.5" />
+                Account Review
               </span>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                {getDisplayName(managedUser)}
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-slate-600">
-                {managedUser.role === "Student"
-                  ? "เปิดดูข้อมูลบัญชีผู้ใช้และข้อมูลโปรไฟล์นักศึกษาแบบอ่านอย่างเดียวจากหน้านี้"
-                  : "เปิดดูข้อมูลบัญชีพื้นฐานที่สร้างไว้ตั้งแต่เริ่มต้น โดยไม่มีข้อมูลฟอร์มนักศึกษาเพิ่มเติม"}
-              </p>
+              <div className="space-y-3">
+                <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                  {getDisplayName(managedUser)}
+                </h1>
+              </div>
+
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {canEditAccount ? (
-                <Button
-                  asChild
-                  className="h-11 rounded-full bg-[linear-gradient(135deg,_#ff9248,_#f26a21)] px-5 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(242,106,33,0.24)] hover:brightness-105"
-                >
-                  <Link href={`/intern/manage-users/${managedUser.id}/edit`}>แก้ไขบัญชี</Link>
-                </Button>
-              ) : null}
+            <div className="flex flex-col gap-4 rounded-[1.8rem] border border-white/16 bg-white/10 p-5 backdrop-blur xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/92">
+                    {roleLabels[managedUser.role]}
+                  </div>
+                  <div
+                    className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm ${
+                      applicationStatusMeta?.headerBadgeClassName ?? "border-white/30 bg-white text-slate-700"
+                    }`}
+                  >
+                    {applicationStatusMeta?.label ?? "ยังไม่มีแบบฟอร์ม"}
+                  </div>
+                </div>
 
-              <Button
-                asChild
-                variant="secondary"
-                className="h-11 rounded-full border border-[color:var(--color-shell-border)] bg-white px-5 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] shadow-[0_10px_24px_rgba(130,74,163,0.12)] hover:bg-[color:var(--color-surface-soft)]"
-              >
-                <Link href="/intern/manage-users">กลับไปแดชบอร์ด</Link>
-              </Button>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="h-11 rounded-full border border-white/20 bg-white/12 px-5 text-sm font-semibold text-white shadow-none backdrop-blur hover:bg-white/18"
+                  >
+                    <Link href={backToListHref}>
+                      <ArrowLeft className="size-4" />
+                      กลับไปหน้ารายการ
+                    </Link>
+                  </Button>
+
+                  {canEditAccount ? (
+                    <Button
+                      asChild
+                      className="h-11 rounded-full bg-[linear-gradient(135deg,_#a464d4,_#8e55b7)] px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(142,85,183,0.28)] hover:brightness-105"
+                    >
+                      <Link href={editHref}>
+                        <PencilLine className="size-4" />
+                        แก้ไขบัญชี
+                      </Link>
+                    </Button>
+                  ) : (
+                    <div className="rounded-2xl border border-white/16 bg-white/10 px-4 py-3 text-sm leading-6 text-white/78 backdrop-blur">
+                      บัญชีประเภทนี้ยังไม่เปิดให้แก้ไขจากแดชบอร์ดของคุณ
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="w-full xl:max-w-[34rem]">
+                {canReviewApplication && managedUser.application ? (
+                  <ApplicationReviewForm application={managedUser.application} userId={managedUser.id} layout="header" />
+                ) : (
+                  <div className="rounded-[1.35rem] border border-white/18 bg-white/8 p-4 text-sm leading-7 text-white/78 backdrop-blur">
+                    {managedUser.application
+                      ? "บัญชีนี้เปิดให้ดูข้อมูลได้ แต่บทบาทของคุณยังไม่สามารถเปลี่ยนสถานะฝึกงานได้"
+                      : "นักศึกษายังไม่มีแบบฟอร์มฝึกงานในระบบ จึงยังไม่แสดงปุ่มอนุมัติหรือปฏิเสธ"}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
 
         <section className="space-y-6">
-          <div className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
+          <div className="card-surface p-8 sm:p-10">
             <div className="flex flex-col gap-4 border-b border-[color:var(--color-shell-border)] pb-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">สรุปข้อมูลบัญชี</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-600">ดูข้อมูลแบบอ่านอย่างเดียวแยกจากหน้าแก้ไข เพื่อให้จัดวางข้อมูลแต่ละบทบาทได้ชัดเจนขึ้น</p>
+              <div className="space-y-3">
+                <span className="section-kicker bg-gradient-brand-soft ring-0">
+                  <ShieldCheck className="size-3.5" />
+                  Account Snapshot
+                </span>
+                <div>
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">สรุปข้อมูลบัญชี</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+                    ดูข้อมูลแบบอ่านอย่างเดียวแยกจากหน้าแก้ไข เพื่อให้ตรวจสอบข้อมูลพื้นฐานก่อนลงมือแก้ไขหรือเปลี่ยนสถานะได้ชัดเจนขึ้น
+                  </p>
+                </div>
               </div>
               <div className="inline-flex w-fit items-center rounded-full bg-[color:var(--color-surface-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)]">
                 {roleLabels[managedUser.role]}
@@ -122,19 +203,13 @@ export default async function ManageUserDetailPage({ params }: ManageUserDetailP
           </div>
 
           {managedUser.role === "Student" ? (
-            <div className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
+            <div className="card-surface p-8 sm:p-10">
               <StudentProfileOverview
                 heading="ข้อมูลโปรไฟล์นักศึกษา"
                 description="ผู้ดูแลสามารถดูข้อมูลส่วนตัว ข้อมูลฝึกงาน และไฟล์แนบทั้งหมดของนักศึกษาได้จากมุมมองเดียว"
                 user={managedUser}
                 application={managedUser.application}
               />
-            </div>
-          ) : null}
-
-          {!canEditAccount ? (
-            <div className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 text-sm leading-7 text-slate-600 shadow-[0_18px_48px_rgba(112,90,138,0.12)] backdrop-blur sm:p-10">
-              บัญชีประเภทนี้ยังไม่เปิดให้แก้ไขจากแดชบอร์ดของคุณ
             </div>
           ) : null}
         </section>

@@ -36,7 +36,7 @@ export function TermsForm() {
           name="acceptTerms"
           type="checkbox"
           value="yes"
-          className="mt-1 h-4 w-4 rounded border-[color:var(--color-shell-border)] text-[color:var(--color-brand-violet-deep)] focus:ring-[rgba(142,85,183,0.2)]"
+          className="mt-1 h-4 w-4 rounded border-[color:var(--color-shell-border)] text-[color:var(--color-brand-violet-deep)] focus:ring-[color:var(--color-brand-focus-ring)]"
           required
         />
         <span>

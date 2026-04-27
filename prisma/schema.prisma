@@ -18,9 +18,11 @@ enum UserRole {
   Superadmin
 }
 
-enum InternshipApplicationApprovalStatus {
+enum InternshipApplicationStatus {
   Pending
-  Approved
+  Rejected
+  Ongoing
+  Finished
 }
 
 model User {
@@ -79,8 +81,9 @@ model InternshipApplication {
   emergencyContactRelationship String
   emergencyContactPhoneNumber  String
   notes                        String?
-  approvalStatus               InternshipApplicationApprovalStatus  @default(Pending)
+  status                       InternshipApplicationStatus          @default(Pending) @map("approvalStatus")
   approvedAt                   DateTime?
+  finishedAt                   DateTime?
   editedAfterApprovalAt        DateTime?
   attachments                  InternshipApplicationAttachment[]
   createdAt                    DateTime                             @default(now())

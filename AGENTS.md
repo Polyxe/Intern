@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - Stack: Next.js 16.2.4 App Router, React 19, TypeScript, Tailwind CSS v4, Prisma 7, shadcn/ui primitives.
 - Package manager: npm.
-- Primary validation: `npm run lint`. Use `npm run build` after non-trivial routing, layout, or config changes.
+- Primary validation: `npm run lint`. Do not forget to run `npm run build` after non-trivial routing, layout, config, or similarly broad application changes.
 - There is no test suite configured yet; do not invent test commands.
 
 ## Working Rules

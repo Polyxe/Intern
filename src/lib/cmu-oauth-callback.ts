@@ -2,7 +2,12 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { completeCmuOAuthLogin, isCmuOAuthEnabled, verifyCmuOAuthState } from "@/lib/cmu-oauth";
+import {
+  CmuOAuthAccountNotProvisionedError,
+  completeCmuOAuthLogin,
+  isCmuOAuthEnabled,
+  verifyCmuOAuthState,
+} from "@/lib/cmu-oauth";
 
 function redirectToLogin(request: Request, reason: string) {
   return NextResponse.redirect(new URL(`/intern/login?oauth=${reason}`, request.url));
@@ -36,7 +41,11 @@ export async function handleCmuOAuthCallback(request: Request) {
     const destination = await completeCmuOAuthLogin(code, requestUrl.origin);
 
     return NextResponse.redirect(new URL(destination, request.url));
-  } catch {
+  } catch (error) {
+    if (error instanceof CmuOAuthAccountNotProvisionedError) {
+      return redirectToLogin(request, "not-provisioned");
+    }
+
     return redirectToLogin(request, "failed");
   }
 }

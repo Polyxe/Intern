@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const SCRYPT_KEY_LENGTH = 64;
 
@@ -13,19 +13,6 @@ export function hashPassword(password: string) {
   return `${salt}:${hash}`;
 }
 
-export function verifyPassword(password: string, storedPassword: string) {
-  const [salt, storedHash] = storedPassword.split(":");
-
-  if (!salt || !storedHash) {
-    return false;
-  }
-
-  const computedHash = scryptSync(password, salt, SCRYPT_KEY_LENGTH);
-  const storedHashBuffer = Buffer.from(storedHash, "hex");
-
-  if (computedHash.length !== storedHashBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(computedHash, storedHashBuffer);
+export function createOAuthOnlyPasswordHash() {
+  return hashPassword(randomBytes(32).toString("hex"));
 }

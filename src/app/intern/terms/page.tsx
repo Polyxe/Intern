@@ -30,21 +30,23 @@ export default async function StudentTermsPage() {
   }
 
   return (
-    <main className="flex-1 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl space-y-8">
-        <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white/82 p-8 shadow-[0_22px_60px_rgba(112,90,138,0.14)] backdrop-blur sm:p-10">
-          <span className="inline-flex items-center rounded-full border border-[color:var(--color-shell-border)] bg-[color:var(--color-surface-soft)] px-4 py-1.5 text-sm font-medium text-[color:var(--color-brand-violet-deep)] shadow-sm">
-            ขั้นตอนแรกก่อนเริ่มใช้งาน
-          </span>
-          <div className="mt-6 space-y-4">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">ยอมรับข้อตกลงการใช้งานสำหรับนักศึกษา</h1>
-            <p className="max-w-3xl text-base leading-8 text-slate-600">
-              การเข้าสู่ระบบครั้งแรกของนักศึกษาต้องยืนยันข้อตกลงก่อน จึงจะสามารถเปิดโปรไฟล์ กรอกแบบฟอร์มฝึกงาน และอัปโหลดเอกสารประกอบได้
-            </p>
+    <main className="page-shell" data-student-flow>
+      <div className="page-grid mx-auto max-w-5xl">
+        <section className="page-hero p-8 sm:p-10">
+          <div className="relative space-y-6">
+            <span className="section-kicker bg-white/14 text-white ring-white/20">
+              ขั้นตอนแรกก่อนเริ่มใช้งาน
+            </span>
+            <div className="space-y-4">
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">ยอมรับข้อตกลงการใช้งานสำหรับนักศึกษา</h1>
+              <p className="max-w-3xl text-base leading-8 text-white/78">
+                การเข้าสู่ระบบครั้งแรกของนักศึกษาต้องยืนยันข้อตกลงก่อน จึงจะสามารถเปิดโปรไฟล์ กรอกแบบฟอร์มฝึกงาน และอัปโหลดเอกสารประกอบได้
+              </p>
+            </div>
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-[color:var(--color-shell-border)] bg-white p-8 shadow-[0_22px_60px_rgba(112,90,138,0.16)] sm:p-10">
+        <section className="card-surface p-8 sm:p-10">
           <div className="space-y-5">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-slate-950">ข้อตกลงโดยสรุป</h2>
@@ -70,7 +72,7 @@ export default async function StudentTermsPage() {
               <Button
                 type="submit"
                 variant="secondary"
-                className="h-11 rounded-2xl border border-[color:var(--color-shell-border)] bg-white px-5 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] shadow-[0_10px_24px_rgba(130,74,163,0.12)] hover:bg-[color:var(--color-surface-soft)]"
+                className="shadow-soft-brand h-11 rounded-2xl border border-[color:var(--color-shell-border)] bg-white px-5 text-sm font-semibold text-[color:var(--color-brand-violet-deep)]"
               >
                 ออกจากระบบ
               </Button>

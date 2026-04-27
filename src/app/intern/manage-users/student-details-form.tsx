@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { formatDateForInput, type InternshipApplicationRecord } from "@/lib/internship-application";
+import { normalizeSexValue, sexOptions } from "@/lib/sex";
 
 import { updateManagedStudentDetails, type ManageUsersState } from "./actions";
 
@@ -34,8 +35,6 @@ const inputClassName =
 
 const textareaClassName =
   "min-h-28 w-full rounded-2xl border border-[color:var(--color-shell-border)] bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[color:var(--color-brand-violet-deep)] focus:ring-4 focus:ring-[rgba(142,85,183,0.12)]";
-
-const sexOptions = ["Male", "Female", "Other"];
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -96,6 +95,7 @@ function Section({
 export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormProps) {
   const [state, formAction] = useActionState(updateManagedStudentDetails, initialState);
   const application = user.application;
+  const today = formatDateForInput(new Date());
 
   return (
     <form action={formAction} className="space-y-5">
@@ -103,7 +103,7 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
 
       <Section
         title="ข้อมูลส่วนตัว"
-        description="ผู้ดูแลระบบสามารถแก้ไขข้อมูลโปรไฟล์ของนักศึกษาได้จากส่วนนี้ โดยรหัสผ่านเป็นข้อมูลแบบอ่านอย่างเดียว"
+        description="ผู้ดูแลระบบสามารถแก้ไขข้อมูลโปรไฟล์ของนักศึกษาได้จากส่วนนี้ และกำหนดอีเมลที่ใช้เข้าสู่ระบบผ่าน OAuth ได้"
       >
         <Field label="คำนำหน้า" htmlFor="title">
           <input id="title" name="title" type="text" defaultValue={user.title} className={inputClassName} />
@@ -115,17 +115,17 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
           <input id="lastname" name="lastname" type="text" defaultValue={user.lastname} className={inputClassName} />
         </Field>
         <Field label="เพศ" htmlFor="sex">
-          <select id="sex" name="sex" defaultValue={user.sex ?? ""} className={inputClassName}>
+          <select id="sex" name="sex" defaultValue={normalizeSexValue(user.sex)} className={inputClassName}>
             <option value="">ยังไม่ระบุ</option>
             {sexOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
         </Field>
         <Field label="วันเกิด" htmlFor="birthDate">
-          <input id="birthDate" name="birthDate" type="date" defaultValue={user.birthDate ? formatDateForInput(user.birthDate) : undefined} className={inputClassName} />
+          <input id="birthDate" name="birthDate" type="date" defaultValue={user.birthDate ? formatDateForInput(user.birthDate) : undefined} max={today} className={inputClassName} />
         </Field>
         <Field label="อีเมล" htmlFor="email">
           <input
@@ -137,9 +137,6 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
             className={canEditEmail ? inputClassName : `${inputClassName} bg-slate-50 text-slate-500`}
             required
           />
-        </Field>
-        <Field label="รหัสผ่าน" htmlFor="password">
-          <input id="password" type="password" value="********" readOnly className={`${inputClassName} bg-slate-50 text-slate-500`} />
         </Field>
         <Field label="สถาบัน" htmlFor="institution">
           <input id="institution" name="institution" type="text" defaultValue={user.institution ?? undefined} className={inputClassName} />
@@ -154,10 +151,10 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
         description="หากนักศึกษายังไม่มีแบบฟอร์มฝึกงาน ผู้ดูแลสามารถกรอกข้อมูลชุดนี้เพื่อสร้างโปรไฟล์ฝึกงานเบื้องต้นได้"
       >
         <Field label="รหัสนักศึกษา" htmlFor="studentId">
-          <input id="studentId" name="studentId" type="text" defaultValue={application?.studentId ?? undefined} className={inputClassName} />
+          <input id="studentId" name="studentId" type="text" defaultValue={application?.studentId ?? undefined} inputMode="numeric" maxLength={9} className={inputClassName} />
         </Field>
         <Field label="เบอร์โทรศัพท์" htmlFor="phoneNumber">
-          <input id="phoneNumber" name="phoneNumber" type="tel" defaultValue={application?.phoneNumber ?? undefined} className={inputClassName} />
+          <input id="phoneNumber" name="phoneNumber" type="tel" defaultValue={application?.phoneNumber ?? undefined} inputMode="numeric" maxLength={10} className={inputClassName} />
         </Field>
         <Field label="คณะ" htmlFor="faculty">
           <input id="faculty" name="faculty" type="text" defaultValue={application?.faculty ?? undefined} className={inputClassName} />
@@ -166,7 +163,7 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
           <input id="program" name="program" type="text" defaultValue={application?.program ?? undefined} className={inputClassName} />
         </Field>
         <Field label="ชั้นปี" htmlFor="yearLevel">
-          <input id="yearLevel" name="yearLevel" type="text" defaultValue={application?.yearLevel ?? undefined} className={inputClassName} />
+          <input id="yearLevel" name="yearLevel" type="text" defaultValue={application?.yearLevel ?? undefined} inputMode="numeric" maxLength={1} className={inputClassName} />
         </Field>
         <Field label="ตำแหน่งฝึกงาน" htmlFor="internshipPosition">
           <input id="internshipPosition" name="internshipPosition" type="text" defaultValue={application?.internshipPosition ?? undefined} className={inputClassName} />
@@ -184,7 +181,7 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
           <input id="guidingProfessorLastname" name="guidingProfessorLastname" type="text" defaultValue={application?.guidingProfessorLastname ?? undefined} className={inputClassName} />
         </Field>
         <Field label="เบอร์โทรอาจารย์นิเทศ" htmlFor="guidingProfessorPhoneNumber">
-          <input id="guidingProfessorPhoneNumber" name="guidingProfessorPhoneNumber" type="tel" defaultValue={application?.guidingProfessorPhoneNumber ?? undefined} className={inputClassName} />
+          <input id="guidingProfessorPhoneNumber" name="guidingProfessorPhoneNumber" type="tel" defaultValue={application?.guidingProfessorPhoneNumber ?? undefined} inputMode="numeric" maxLength={10} className={inputClassName} />
         </Field>
         <Field label="ชื่อผู้ดูแลสถานประกอบการ" htmlFor="companySupervisorName">
           <input id="companySupervisorName" name="companySupervisorName" type="text" defaultValue={application?.companySupervisorName ?? undefined} className={inputClassName} />
@@ -196,7 +193,7 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
           <input id="companySupervisorEmail" name="companySupervisorEmail" type="email" defaultValue={application?.companySupervisorEmail ?? undefined} className={inputClassName} />
         </Field>
         <Field label="เบอร์โทรผู้ดูแล" htmlFor="companySupervisorPhoneNumber">
-          <input id="companySupervisorPhoneNumber" name="companySupervisorPhoneNumber" type="tel" defaultValue={application?.companySupervisorPhoneNumber ?? undefined} className={inputClassName} />
+          <input id="companySupervisorPhoneNumber" name="companySupervisorPhoneNumber" type="tel" defaultValue={application?.companySupervisorPhoneNumber ?? undefined} inputMode="numeric" maxLength={10} className={inputClassName} />
         </Field>
       </Section>
 
@@ -217,7 +214,7 @@ export function StudentDetailsForm({ user, canEditEmail }: StudentDetailsFormPro
           <input id="emergencyContactRelationship" name="emergencyContactRelationship" type="text" defaultValue={application?.emergencyContactRelationship ?? undefined} className={inputClassName} />
         </Field>
         <Field label="เบอร์โทรผู้ติดต่อฉุกเฉิน" htmlFor="emergencyContactPhoneNumber">
-          <input id="emergencyContactPhoneNumber" name="emergencyContactPhoneNumber" type="tel" defaultValue={application?.emergencyContactPhoneNumber ?? undefined} className={inputClassName} />
+          <input id="emergencyContactPhoneNumber" name="emergencyContactPhoneNumber" type="tel" defaultValue={application?.emergencyContactPhoneNumber ?? undefined} inputMode="numeric" maxLength={10} className={inputClassName} />
         </Field>
         <Field label="หมายเหตุเพิ่มเติม" htmlFor="notes" className="md:col-span-2">
           <textarea id="notes" name="notes" defaultValue={application?.notes ?? undefined} className={textareaClassName} />

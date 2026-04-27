@@ -33,7 +33,7 @@ export function UserAvatar({
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center overflow-hidden rounded-full border border-white/70 bg-[linear-gradient(135deg,_rgba(255,255,255,0.88),_rgba(246,236,252,0.95))] text-sm font-semibold text-[color:var(--color-brand-violet-deep)] shadow-[0_10px_24px_rgba(130,74,163,0.12)]",
+        "bg-avatar-surface shadow-soft-brand relative flex items-center justify-center overflow-hidden rounded-full border border-white/70 text-sm font-semibold text-[color:var(--color-brand-violet-deep)]",
         className,
       )}
       aria-label={fullName}
