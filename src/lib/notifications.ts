@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { USER_ROLES } from "@/lib/user-management";
 import { sendNotificationEmail } from "@/lib/email";
+import {
+  getAdminTelegramChatId,
+  getStudentTelegramChatId,
+  sendTelegramMessage,
+} from "@/lib/telegram";
 
 type NotificationEmailOptions = {
   recipientEmail: string;
@@ -49,6 +54,33 @@ async function deliverNotificationEmail(
   });
 }
 
+async function deliverNotificationTelegram(
+  title: string,
+  message: string,
+  options?: {
+    chatId?: string;
+    actionPath?: string;
+    actionLabel?: string;
+  },
+) {
+  if (!options?.chatId) {
+    return;
+  }
+
+  await sendTelegramMessage({
+    chatId: options.chatId,
+    title,
+    message,
+    action:
+      options.actionPath && options.actionLabel
+        ? {
+            path: options.actionPath,
+            label: options.actionLabel,
+          }
+        : undefined,
+  });
+}
+
 export async function createNotification(userId: string, title: string, message: string) {
   await prisma.notification.create({
     data: { userId, title, message },
@@ -63,16 +95,26 @@ export async function notifyUser(
 ) {
   await createNotification(userId, title, message);
 
-  if (!options?.email?.recipientEmail) {
-    return;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (options?.email?.recipientEmail) {
+    await deliverNotificationEmail(title, message, {
+      recipients: [options.email.recipientEmail],
+      subject: options.email.subject,
+      heading: options.email.heading,
+      actionPath: options.email.actionPath,
+      actionLabel: options.email.actionLabel,
+    });
   }
 
-  await deliverNotificationEmail(title, message, {
-    recipients: [options.email.recipientEmail],
-    subject: options.email.subject,
-    heading: options.email.heading,
-    actionPath: options.email.actionPath,
-    actionLabel: options.email.actionLabel,
+  await deliverNotificationTelegram(title, message, {
+    chatId:
+      user?.role === USER_ROLES.Student ? getStudentTelegramChatId() : getAdminTelegramChatId(),
+    actionPath: options?.email?.actionPath,
+    actionLabel: options?.email?.actionLabel,
   });
 }
 
@@ -111,6 +153,12 @@ export async function notifyAdmins(
     recipients: admins.map((admin) => admin.email),
     subject: options?.email?.subject,
     heading: options?.email?.heading,
+    actionPath: options?.email?.actionPath,
+    actionLabel: options?.email?.actionLabel,
+  });
+
+  await deliverNotificationTelegram(title, message, {
+    chatId: getAdminTelegramChatId(),
     actionPath: options?.email?.actionPath,
     actionLabel: options?.email?.actionLabel,
   });
