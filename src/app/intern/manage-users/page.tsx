@@ -224,8 +224,8 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
       <div className="page-grid">
         {/* ── Hero ── */}
         <section className="page-hero px-8 py-8 sm:px-10 sm:py-10">
-          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.78fr)] lg:items-end">
-            <div className="space-y-4">
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.78fr)] lg:items-center">
+            <div className="self-center space-y-4">
               <span className="section-kicker bg-white/14 text-white ring-white/20">
                 <Users className="size-3.5" />
                 User Management
@@ -238,12 +238,12 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 text-center backdrop-blur">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">นักศึกษา</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{allStudentUsers.length}</p>
                 <p className="mt-1 text-xs text-white/58">บัญชีทั้งหมด</p>
               </div>
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 text-center backdrop-blur">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">ผู้ดูแลระบบ</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{allManagerUsers.length}</p>
                 <p className="mt-1 text-xs text-white/58">บัญชีทั้งหมด</p>
@@ -297,7 +297,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
 
               {filters.role === MANAGE_USER_ROLE_FILTERS.Student
                 ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  <div className="flex flex-wrap justify-center gap-3">
                     {visibleStudentStatusFilters.map((statusFilter) => (
                     <FilterPill
                       key={statusFilter}
@@ -560,7 +560,7 @@ function FilterPill({
       aria-current={active ? "page" : undefined}
       className={`inline-flex border font-semibold transition ${
         isCard
-          ? "min-h-28 flex-col items-start justify-between rounded-[1.45rem] px-4 py-3.5 text-left shadow-sm hover:-translate-y-0.5"
+          ? "min-h-28 w-full flex-none flex-col items-center justify-between rounded-[1.45rem] px-4 py-3.5 text-center shadow-sm hover:-translate-y-0.5 sm:w-[15rem]"
           : "items-center rounded-full px-4 py-2 text-sm"
       } ${
         active

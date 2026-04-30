@@ -52,7 +52,7 @@ export async function AppHeader() {
                 priority
               />
             </div>
-            <div className="leading-tight">
+            <div className="text-center leading-tight">
               <p className="text-lg font-semibold tracking-tight text-white sm:text-xl">
                 Internship Management System
               </p>
@@ -91,7 +91,7 @@ export async function AppHeader() {
                   imagePath={currentUser.profileImagePath}
                   className="h-10 w-10 ring-2 ring-white/40"
                 />
-                <div className="hidden text-right leading-tight sm:block">
+                <div className="hidden text-center leading-tight sm:block">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
                     {accountLabel}
                   </p>
