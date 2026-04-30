@@ -81,6 +81,7 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
 
   const canEditStudent = canManagerEditUser(currentUser.role, managedUser.role);
   const canEditAccount = canManagerEditManagedAccount(currentUser.role, managedUser.role, { isSelf });
+  const canEditProfileImage = currentUser.role === USER_ROLES.Superadmin || isSelf;
   const draft = canEditStudent && !managedUser.application
     ? await getManagedStudentEditDraft(currentUser.id, managedUser.id)
     : null;
@@ -153,7 +154,7 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
           <AccountDetailsForm
             user={managedUser}
             canEditEmail={currentUser.role === USER_ROLES.Superadmin}
-            canEditProfileImage={isSelf}
+            canEditProfileImage={canEditProfileImage}
           />
         )}
       </div>

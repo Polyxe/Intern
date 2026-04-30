@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, FileText, PencilLine, ShieldCheck } from "lucide-react";
+import { ArrowLeft, FileText, PencilLine } from "lucide-react";
 
 import { AccountProfileOverview } from "@/components/account-profile-overview";
 import { ClearSearchParamOnce } from "@/components/clear-search-param-once";
@@ -152,18 +152,20 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
                 </div>
               </div>
 
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">สถานะฝึกงาน</p>
-                <div className="mt-2">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm ${
-                      applicationStatusMeta?.headerBadgeClassName ?? "border-white/30 bg-white text-slate-700"
-                    }`}
-                  >
-                    {applicationStatusMeta?.label ?? "ยังไม่มีแบบฟอร์ม"}
-                  </span>
+              {managedUser.role === "Student" ? (
+                <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">สถานะฝึกงาน</p>
+                  <div className="mt-2">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm ${
+                        applicationStatusMeta?.headerBadgeClassName ?? "border-white/30 bg-white text-slate-700"
+                      }`}
+                    >
+                      {applicationStatusMeta?.label ?? "ยังไม่มีแบบฟอร์ม"}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               {canReviewApplication && managedUser.application ? (
                 <div className="sm:col-span-2 lg:col-span-1">

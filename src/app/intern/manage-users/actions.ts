@@ -737,6 +737,7 @@ export async function updateManagedAccountDetails(
     };
   }
 
+  const canEditProfilePhoto = currentUser.role === USER_ROLES.Superadmin || isSelf;
   const canEditEmail = currentUser.role === USER_ROLES.Superadmin;
   const nextEmail = canEditEmail ? email : targetUser.email;
 
@@ -754,9 +755,9 @@ export async function updateManagedAccountDetails(
     };
   }
 
-  if (profilePhoto && !isSelf) {
+  if (profilePhoto && !canEditProfilePhoto) {
     return {
-      error: "อัปเดตรูปโปรไฟล์ได้เฉพาะบัญชีของคุณเอง",
+      error: "บัญชีนี้ยังไม่เปิดให้แก้ไขรูปโปรไฟล์จากแดชบอร์ด",
       success: "",
     };
   }
@@ -809,7 +810,7 @@ export async function updateManagedAccountDetails(
 
   try {
     const savedProfilePhoto = profilePhoto
-      ? await saveUploadedFile(profilePhoto, `profile-photos/${currentUser.id}`)
+      ? await saveUploadedFile(profilePhoto, `profile-photos/${targetUser.id}`)
       : null;
 
     if (savedProfilePhoto) {
