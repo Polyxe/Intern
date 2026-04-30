@@ -66,7 +66,7 @@ export function ManageUsersForm({ allowedRoles, cancelHref, returnTo }: ManageUs
         </div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Step 3</p>
-          <p className="mt-1 font-medium text-slate-900">บันทึกทันที</p>
+          <p className="mt-1 font-medium text-slate-900">บันทึก</p>
         </div>
       </div>
 

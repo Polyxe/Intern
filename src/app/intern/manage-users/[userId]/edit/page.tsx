@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, FilePenLine, Mail, Sparkles } from "lucide-react";
+import { ArrowLeft, FilePenLine } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
@@ -9,7 +9,6 @@ import { normalizeInternshipApplicationWizardStep } from "@/lib/internship-appli
 import { getManagedStudentEditDraft } from "@/lib/managed-student-edit-draft";
 import {
   appendReturnTo,
-  getCanonicalManageUsersHref,
   getValidatedManageUsersReturnTo,
 } from "@/lib/manage-users-routing";
 import { prisma } from "@/lib/prisma";
@@ -37,12 +36,6 @@ type ManageUserEditPageProps = {
   }>;
 };
 
-const studentEditStepLabels = {
-  1: "ข้อมูลส่วนตัว",
-  2: "ข้อมูลการศึกษา",
-  3: "รายละเอียดการฝึกงาน",
-} as const;
-
 export default async function ManageUserEditPage({ params, searchParams }: ManageUserEditPageProps) {
   const currentUser = await getCurrentUser();
 
@@ -57,7 +50,6 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
   const { userId } = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
   const returnTo = getValidatedManageUsersReturnTo(resolvedSearchParams.returnTo);
-  const backToListHref = returnTo ?? getCanonicalManageUsersHref(currentUser.role);
   const managedUser = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -119,10 +111,10 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
       <div className="mx-auto max-w-6xl space-y-8">
         <section className="page-hero p-8 sm:p-10">
           <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] lg:items-end">
-            <div className="space-y-4">
+            <div className="self-center space-y-4">
               <span className="section-kicker bg-white/14 text-white ring-white/20">
                 <FilePenLine className="size-3.5" />
-                Managed Account Edit
+                Account Edit
               </span>
               <div className="space-y-3">
                 <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
@@ -132,57 +124,19 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
                   ใช้โครงหน้าแบบเดียวกับฟอร์มฝึกงานเพื่อให้การแก้ไขข้อมูลบัญชีอ่านง่าย บันทึกเร็ว และไล่ตรวจรายละเอียดได้เป็นช่วงชัดเจน
                 </p>
               </div>
-
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  asChild
-                  variant="secondary"
-                  className="h-11 rounded-full border border-white/20 bg-white/12 px-5 text-sm font-semibold text-white shadow-none backdrop-blur hover:bg-white/18"
-                >
-                  <Link href={detailHref}>
-                    <ArrowLeft className="size-4" />
-                    กลับไปหน้าดูข้อมูล
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="secondary"
-                  className="h-11 rounded-full border border-white/20 bg-white/12 px-5 text-sm font-semibold text-white shadow-none backdrop-blur hover:bg-white/18"
-                >
-                  <Link href={backToListHref}>
-                    <ArrowLeft className="size-4" />
-                    กลับไปหน้ารายการ
-                  </Link>
-                </Button>
-              </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
-                <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">
-                  <Sparkles className="size-3.5" />
-                  โหมดการแก้ไข
-                </p>
-                <div className="mt-3 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/92">
-                  {canEditStudent ? `ขั้นตอน ${currentStep} / 3` : "Single Session"}
-                </div>
-                <p className="mt-3 text-sm leading-6 text-white/76">
-                  {canEditStudent
-                    ? `กำลังแก้ไขช่วง ${studentEditStepLabels[currentStep]} โดยใช้รูปแบบ wizard เดียวกับหน้าฟอร์มนักศึกษาฝึกงาน`
-                    : "แก้ไขข้อมูลบัญชีหลักของผู้ใช้ในหน้ารวมเดียว พร้อมการ์ดและจังหวะการจัดวางแบบเดียวกับหน้าฟอร์มฝึกงาน"}
-                </p>
-              </div>
-
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
-                <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">
-                  <Mail className="size-3.5" />
-                  บัญชีที่กำลังแก้ไข
-                </p>
-                <p className="mt-3 text-base font-semibold text-white/92">{managedUser.email}</p>
-                <p className="mt-2 text-sm leading-6 text-white/72">
-                  บันทึกแต่ละช่วงแล้วระบบจะคงเส้นทางกลับไปยังหน้ารายละเอียดหรือหน้ารายการผู้ใช้ตามบริบทเดิม
-                </p>
-              </div>
+            <div className="flex flex-wrap gap-3 lg:justify-end lg:self-start">
+              <Button
+                asChild
+                variant="secondary"
+                className="h-11 rounded-full border border-white/20 bg-white/12 px-5 text-sm font-semibold text-white shadow-none backdrop-blur hover:bg-white/18"
+              >
+                <Link href={detailHref}>
+                  <ArrowLeft className="size-4" />
+                  กลับไปหน้าดูข้อมูล
+                </Link>
+              </Button>
             </div>
           </div>
         </section>

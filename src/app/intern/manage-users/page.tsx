@@ -203,10 +203,6 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
 
   const pageStartIndex = (currentPage - 1) * MANAGE_USERS_RESULTS_PER_PAGE;
   const paginatedUsers = sortedUsers.slice(pageStartIndex, pageStartIndex + MANAGE_USERS_RESULTS_PER_PAGE);
-  const clearSearchHref = getCanonicalManageUsersHref(currentUser.role, {
-    role: filters.role,
-    studentStatus: filters.studentStatus,
-  });
   const allSearchFields = getManageUsersSearchFieldsForRole(filters.role);
   const searchFieldSections =
     filters.role === MANAGE_USER_ROLE_FILTERS.Admin
@@ -234,19 +230,6 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                 <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                   พื้นที่จัดการบัญชีสำหรับทีมดูแลระบบ
                 </h1>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 text-center backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">นักศึกษา</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{allStudentUsers.length}</p>
-                <p className="mt-1 text-xs text-white/58">บัญชีทั้งหมด</p>
-              </div>
-              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 text-center backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">ผู้ดูแลระบบ</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{allManagerUsers.length}</p>
-                <p className="mt-1 text-xs text-white/58">บัญชีทั้งหมด</p>
               </div>
             </div>
           </div>
@@ -333,7 +316,6 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
               selectedFields={filters.selectedFields}
               allFields={allSearchFields}
               canonicalHref={filters.canonicalHref}
-              clearSearchHref={clearSearchHref}
               controlClassName={searchControlClassName}
               sections={searchFieldSections}
             />
@@ -521,7 +503,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
               </p>
               <p className="mt-2 text-sm leading-7 text-slate-500">
                 {filters.query
-                  ? "ลองเปลี่ยนคำค้น หรือล้างการค้นหาเพื่อกลับไปดูรายการทั้งหมด"
+                  ? "ลองเปลี่ยนคำค้นหรือปรับฟิลด์ค้นหาเพื่อกลับไปดูรายการทั้งหมด"
                   : "ลองเปลี่ยนตัวกรองด้านบน หรือสร้างบัญชีใหม่จากปุ่มสร้างบัญชีบนแถบนำทาง"}
               </p>
             </div>

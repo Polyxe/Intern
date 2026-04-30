@@ -51,20 +51,6 @@ export function ApplicationReviewForm({ application, userId, layout = "panel" }:
       <input type="hidden" name="status" value={selectedStatus} />
       <input type="hidden" name="rejectionReason" value={rejectionReason} />
 
-      {showsReapprovalNotice ? (
-        <div
-          className={
-            isHeaderLayout
-              ? "rounded-[1.35rem] border border-white/18 bg-white/12 p-4 text-sm leading-6 text-white/88 backdrop-blur"
-              : "rounded-3xl border border-orange-200 bg-orange-50/80 p-5 text-sm leading-7 text-orange-900"
-          }
-        >
-          นักศึกษาได้แก้ไขข้อมูลหลังการอนุมัติเมื่อ{" "}
-          {application.editedAfterApprovalAt ? formatDateForDisplay(application.editedAfterApprovalAt) : "ล่าสุด"}
-          ระบบได้ส่งแบบฟอร์มกลับมาให้ตรวจสอบอีกครั้งแล้ว
-        </div>
-      ) : null}
-
       {!isHeaderLayout ? (
         <div className="rounded-3xl border border-[color:var(--color-shell-border)] bg-[linear-gradient(135deg,_rgba(247,242,252,0.94),_rgba(255,249,243,0.94))] p-5">
           <p className="text-sm font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">

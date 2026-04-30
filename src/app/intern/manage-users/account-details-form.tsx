@@ -151,12 +151,11 @@ export function AccountDetailsForm({ user, canEditEmail, canEditProfileImage }: 
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-950">รูปโปรไฟล์</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">อัปเดตรูปของบัญชีนี้จากการ์ดเดียวกันกับจังหวะการจัดวางของฟอร์มนักศึกษา</p>
               </div>
             </div>
 
             <div className="mt-4">
-              <Field label="อัปโหลดรูปโปรไฟล์" htmlFor="profilePhoto">
+              <Field label="" htmlFor="profilePhoto">
                 <input
                   id="profilePhoto"
                   name="profilePhoto"
@@ -171,7 +170,7 @@ export function AccountDetailsForm({ user, canEditEmail, canEditProfileImage }: 
         </div>
       </section>
 
-      <Section icon={UserRound} title="ข้อมูลบัญชี" description="แก้ไขข้อมูลหลักของผู้ใช้ในรูปแบบการ์ดเดียวกับ intern form">
+      <Section icon={UserRound} title="ข้อมูลบัญชี" description="">
           <Field label="คำนำหน้า" htmlFor="title">
             <input id="title" name="title" type="text" defaultValue={user.title} className={inputClassName} />
           </Field>

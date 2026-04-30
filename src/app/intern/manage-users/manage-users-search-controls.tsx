@@ -15,7 +15,6 @@ type ManageUsersSearchControlsProps = {
   selectedFields: readonly string[];
   allFields: readonly string[];
   canonicalHref: string;
-  clearSearchHref: string;
   controlClassName: string;
   sections: ReadonlyArray<{
     label: string;
@@ -35,7 +34,6 @@ export function ManageUsersSearchControls({
   selectedFields,
   allFields,
   canonicalHref,
-  clearSearchHref,
   controlClassName,
   sections,
 }: ManageUsersSearchControlsProps) {
@@ -44,7 +42,6 @@ export function ManageUsersSearchControls({
   const [draftQuery, setDraftQuery] = useState(query);
   const [draftSelectedFields, setDraftSelectedFields] = useState<readonly string[]>(selectedFields);
   const [showFieldSelector, setShowFieldSelector] = useState(false);
-  const defaultFields = getDefaultManageUsersFields(managerRole, role);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -83,13 +80,12 @@ export function ManageUsersSearchControls({
   ]);
 
   const isDirty = draftQuery.trim() !== query || !areFieldsEqual(draftSelectedFields, selectedFields);
-  const usesDefaultFieldSet = areFieldsEqual(draftSelectedFields, defaultFields);
   const hasAllFieldsSelected = areFieldsEqual(draftSelectedFields, allFields);
 
   return (
     <div className="space-y-3">
       {/* Search bar row */}
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
         <div className="relative">
           <input
             id="query"
@@ -125,20 +121,6 @@ export function ManageUsersSearchControls({
           เลือกฟิลด์ ({draftSelectedFields.length})
           {showFieldSelector ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setDraftQuery("");
-            setDraftSelectedFields(allFields);
-            startTransition(() => {
-              router.replace(clearSearchHref, { scroll: false });
-            });
-          }}
-          className="inline-flex h-12 items-center justify-center rounded-2xl border border-[color:var(--color-shell-border)] bg-white px-5 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] shadow-soft-brand transition hover:bg-[color:var(--color-surface-soft)]"
-        >
-          ล้างการค้นหา
-        </button>
       </div>
 
       {/* Collapsible field selector */}
@@ -160,14 +142,6 @@ export function ManageUsersSearchControls({
                 className="inline-flex h-9 items-center justify-center rounded-full border border-[color:var(--color-shell-border)] bg-white px-4 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] transition hover:bg-[color:var(--color-surface-soft)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 เลือกทั้งหมด
-              </button>
-              <button
-                type="button"
-                onClick={() => setDraftSelectedFields(defaultFields)}
-                disabled={usesDefaultFieldSet}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-[rgba(142,85,183,0.18)] bg-[rgba(142,85,183,0.08)] px-4 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] transition hover:bg-[rgba(142,85,183,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                กลับค่าเริ่มต้น
               </button>
             </div>
           </div>

@@ -85,8 +85,8 @@ export const studentStatusFilterMeta: Record<
       "border-[rgba(142,85,183,0.2)] bg-white text-[color:var(--color-brand-violet-deep)] hover:bg-[rgba(142,85,183,0.08)]",
   },
   "needs-follow-up": {
-    label: "ต้องติดตาม",
-    emptyStateLabel: "ต้องติดตาม",
+    label: "มีการแก้ไข",
+    emptyStateLabel: "มีการแก้ไข",
     badgeClassName: "border-orange-200 bg-orange-50 text-orange-800",
     pillClassName: "border-orange-200 bg-white text-orange-800 hover:border-orange-300 hover:bg-orange-50",
   },
@@ -336,7 +336,7 @@ export function getStatusChangeConfirmationContent(
   return {
     title: "ยืนยันการเปลี่ยนสถานะเป็นฝึกงานเสร็จสิ้น",
     description:
-      "การเปลี่ยนสถานะเป็นฝึกงานเสร็จสิ้นจะบันทึกเวลาเสร็จสิ้น ล้างธงต้องติดตาม และล็อกการแก้ไขข้อมูลของนักศึกษาจนกว่าจะมีผู้ดูแลเปิดสถานะใหม่อีกครั้ง",
+      "การเปลี่ยนสถานะเป็นฝึกงานเสร็จสิ้นจะบันทึกเวลาเสร็จสิ้น ล้างธงมีการแก้ไข และล็อกการแก้ไขข้อมูลของนักศึกษาจนกว่าจะมีผู้ดูแลเปิดสถานะใหม่อีกครั้ง",
     confirmLabel: "ยืนยันฝึกงานเสร็จสิ้น",
   };
 }
