@@ -103,7 +103,7 @@ export default async function InternshipApplicationPage({
       <div className="mx-auto max-w-6xl space-y-8">
         <section className="page-hero p-8 sm:p-10">
           <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] lg:items-end">
-            <div className="space-y-4">
+            <div className="self-center space-y-4">
               <span className="section-kicker bg-white/14 text-white ring-white/20">
                 <Briefcase className="size-3.5" />
                 Internship Form

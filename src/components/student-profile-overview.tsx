@@ -4,7 +4,6 @@ import {
   Building2,
   Briefcase,
   CalendarDays,
-  Clock3,
   Download,
   FileText,
   GraduationCap,
@@ -23,7 +22,6 @@ import {
 import {
   formatDateForDisplay,
   getInternshipStatus,
-  internshipStatusMeta,
   type InternshipApplicationRecord,
   wasEditedAfterApproval,
 } from "@/lib/internship-application";
@@ -159,7 +157,6 @@ function DetailRow({
 
 export function StudentProfileOverview({ heading, description, user, application }: StudentProfileOverviewProps) {
   const status = application ? getInternshipStatus(application) : null;
-  const statusMeta = status ? internshipStatusMeta[status] : null;
   const showsReapprovalNotice = wasEditedAfterApproval(application);
   const showsRejectionReason = status === "Rejected" && Boolean(application?.rejectionReason?.trim());
   const progress = computeProgress(application?.internshipStartDate, application?.internshipEndDate);
@@ -182,27 +179,7 @@ export function StudentProfileOverview({ heading, description, user, application
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-5">
-        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant lg:col-span-2">
-          <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">สถานะฝึกงาน</p>
-          <div className="mt-2.5 flex items-center gap-3">
-            {statusMeta ? (
-              <span className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
-                {statusMeta.label}
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
-                ยังไม่มีสถานะ
-              </span>
-            )}
-          </div>
-          <p className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
-            <Clock3 className="size-3.5" />
-            อัปเดตล่าสุด {application ? formatDateForDisplay(application.updatedAt) : "-"}
-          </p>
-        </section>
-
-        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant lg:col-span-3">
+        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant lg:col-span-5">
           <div className="pointer-events-none absolute -bottom-16 -left-10 size-52 rounded-full bg-gradient-accent opacity-[0.12] blur-3xl" />
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -303,7 +280,6 @@ export function StudentProfileOverview({ heading, description, user, application
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-slate-950 group-hover:text-white">{attachment.fileName}</p>
-                    <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500 group-hover:text-white/70">{attachment.mimeType}</p>
                     <p className="mt-3 text-sm text-slate-600 group-hover:text-white/80">{(attachment.fileSize / (1024 * 1024)).toFixed(2)} MB</p>
                   </div>
                 </div>

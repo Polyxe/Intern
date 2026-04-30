@@ -107,25 +107,6 @@ export function InternshipApplicationOverview({
         </section>
       ) : null}
 
-      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant">
-        <div className="pointer-events-none absolute -top-16 -right-12 size-44 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
-        <div className="relative flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2.5">
-            <span className="inline-flex items-center rounded-full bg-gradient-brand-soft px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase ring-1 ring-[rgba(142,85,183,0.12)]">
-              Internship Application
-            </span>
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{heading}</h2>
-              {description ? <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{description}</p> : null}
-            </div>
-          </div>
-
-          <div className={`inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
-            {statusMeta.label}
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-5 md:grid-cols-2">
         <DetailCard icon={GraduationCap} title="ข้อมูลนักศึกษา">
           <DetailRow icon={IdCard} label="รหัสนักศึกษา" value={displayValue(application.studentId)} />

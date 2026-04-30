@@ -110,7 +110,7 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
             <div className="space-y-4">
               <span className="section-kicker bg-white/14 text-white ring-white/20">
                 <FileText className="size-3.5" />
-                Account Review
+                รีวิวข้อมูลบัญชี
               </span>
               <div className="space-y-3">
                 <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
@@ -177,22 +177,7 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
         {/* ── Account snapshot ── */}
         <section className="space-y-6">
           <div className="card-surface p-7 sm:p-8">
-            <div className="flex flex-col gap-3.5 border-b border-[color:var(--color-shell-border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-3">
-                <span className="section-kicker bg-gradient-brand-soft ring-0">
-                  <ShieldCheck className="size-3.5" />
-                  Account Snapshot
-                </span>
-                <div>
-                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                    {managedUser.role === "Student" ? "ข้อมูลโปรไฟล์นักศึกษา" : "สรุปข้อมูลบัญชี"}
-                  </h2>
-                </div>
-              </div>
-              <div className="inline-flex w-fit items-center rounded-full bg-[color:var(--color-surface-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)]">
-                {roleLabels[managedUser.role]}
-              </div>
-            </div>
+            
 
             <div className="mt-5">
               {managedUser.role === "Student" ? (
