@@ -910,6 +910,11 @@ export async function deleteManagedAccount(
               filePath: true,
             },
           },
+          workFiles: {
+            select: {
+              filePath: true,
+            },
+          },
         },
       },
     },
@@ -933,6 +938,7 @@ export async function deleteManagedAccount(
   const filePaths = [
     targetUser.profileImagePath,
     ...(targetUser.application?.attachments.map((attachment) => attachment.filePath) ?? []),
+    ...(targetUser.application?.workFiles.map((workFile) => workFile.filePath) ?? []),
   ].filter((value): value is string => Boolean(value));
 
   await prisma.user.delete({

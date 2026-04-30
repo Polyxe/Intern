@@ -35,6 +35,7 @@ import {
 import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getStudentInternshipProfileHref } from "@/lib/student-profile-routing";
+import { getBrowserFileDeduplicationKey, getUploadFileDeduplicationKey } from "@/lib/upload-file-deduplication";
 import { getDisplayName } from "@/lib/user-management";
 import { USER_ROLES } from "@/lib/user-management";
 
@@ -153,6 +154,33 @@ function getFileValue(formData: FormData, fieldName: string) {
 
 function getFilesValue(formData: FormData, fieldName: string) {
   return formData.getAll(fieldName).filter((value): value is File => value instanceof File && value.size > 0);
+}
+
+function limitFilesToRemainingSlots(files: File[], maxFiles: number, existingFileCount: number) {
+  const remainingSlots = Math.max(0, maxFiles - existingFileCount);
+
+  return files.slice(0, remainingSlots);
+}
+
+function filterDuplicateFiles(
+  files: File[],
+  existingFiles: ReadonlyArray<{ fileName: string; fileSize: number }>,
+) {
+  const knownFileKeys = new Set(
+    existingFiles.map((file) => getUploadFileDeduplicationKey(file.fileName, file.fileSize)),
+  );
+
+  return files.filter((file) => {
+    const fileKey = getBrowserFileDeduplicationKey(file);
+
+    if (knownFileKeys.has(fileKey)) {
+      return false;
+    }
+
+    knownFileKeys.add(fileKey);
+
+    return true;
+  });
 }
 
 function createState(
@@ -296,14 +324,12 @@ function validateInternshipApplication({
   values,
   steps,
   hasExistingProfilePhoto,
-  existingAttachmentCount,
   profilePhoto,
   attachmentFiles,
 }: {
   values: InternshipApplicationFormValues;
   steps: InternshipApplicationWizardStep[];
   hasExistingProfilePhoto: boolean;
-  existingAttachmentCount: number;
   profilePhoto: File | null;
   attachmentFiles: File[];
 }) {
@@ -376,10 +402,6 @@ function validateInternshipApplication({
 
   if (steps.includes(1) && !hasExistingProfilePhoto && !profilePhoto) {
     addFieldError(fieldErrors, "profilePhoto", "กรุณาอัปโหลดรูปโปรไฟล์ก่อนบันทึกแบบฟอร์ม");
-  }
-
-  if (steps.includes(3) && existingAttachmentCount + attachmentFiles.length > MAX_ATTACHMENT_COUNT) {
-    addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบทั้งหมดต้องมีไม่เกิน 5 ไฟล์");
   }
 
   if (steps.includes(1) && profilePhoto) {
@@ -461,7 +483,7 @@ export async function saveInternshipApplication(
   }
 
   const profilePhoto = getFileValue(formData, "profilePhoto");
-  const attachmentFiles = getFilesValue(formData, "attachments");
+  const requestedAttachmentFiles = getFilesValue(formData, "attachments");
 
   const existingUser = await prisma.user.findUnique({
     where: { id: currentUser.id },
@@ -498,7 +520,9 @@ export async function saveInternshipApplication(
           attachments: {
             select: {
               id: true,
+              fileName: true,
               filePath: true,
+              fileSize: true,
             },
           },
         },
@@ -522,12 +546,16 @@ export async function saveInternshipApplication(
   }
 
   const existingAttachmentCount = existingApplication?.attachments.length ?? 0;
+  const attachmentFiles = limitFilesToRemainingSlots(
+    filterDuplicateFiles(requestedAttachmentFiles, existingApplication?.attachments ?? []),
+    MAX_ATTACHMENT_COUNT,
+    existingAttachmentCount,
+  );
 
   const validation = validateInternshipApplication({
     values,
     steps: currentStep === 3 ? [1, 2, 3] : [currentStep],
     hasExistingProfilePhoto: Boolean(existingUser?.profileImagePath),
-    existingAttachmentCount,
     profilePhoto,
     attachmentFiles,
   });

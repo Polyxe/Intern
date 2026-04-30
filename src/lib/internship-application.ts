@@ -1,5 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 
+import { internshipWorkFileSelect } from "@/lib/internship-work";
+
 export const INTERNSHIP_APPLICATION_STATUSES = {
   Pending: "Pending",
   Rejected: "Rejected",
@@ -136,6 +138,12 @@ export const internshipApplicationSelect = {
     },
     orderBy: {
       createdAt: "asc",
+    },
+  },
+  workFiles: {
+    select: internshipWorkFileSelect,
+    orderBy: {
+      createdAt: "desc",
     },
   },
   createdAt: true,

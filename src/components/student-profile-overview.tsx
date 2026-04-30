@@ -25,7 +25,8 @@ import {
   type InternshipApplicationRecord,
   wasEditedAfterApproval,
 } from "@/lib/internship-application";
-import { getInternshipAttachmentDownloadPath } from "@/lib/public-paths";
+import { formatInternshipWorkFileSize } from "@/lib/internship-work";
+import { getInternshipAttachmentDownloadPath, getInternshipWorkDownloadPath } from "@/lib/public-paths";
 import { getSexLabel } from "@/lib/sex";
 import { roleLabels, type UserRole } from "@/lib/user-management";
 
@@ -299,6 +300,57 @@ export function StudentProfileOverview({ heading, description, user, application
           </div>
         ) : (
           <p className="relative mt-4 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในโปรไฟล์นี้</p>
+        )}
+      </section>
+
+      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant">
+        <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-accent opacity-[0.08] blur-3xl" />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-950">ผลงานระหว่างฝึกงาน</h2>
+          </div>
+          <div className="inline-flex w-fit items-center rounded-full bg-gradient-brand-soft px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)]">
+            ทั้งหมด {application?.workFiles.length ?? 0} ไฟล์
+          </div>
+        </div>
+
+        {application?.workFiles.length ? (
+          <div className="relative mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {application.workFiles.map((workFile) => (
+              <div
+                key={workFile.id}
+                className="group rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-4 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-orange-deep)] hover:bg-[color:var(--color-brand-orange-deep)]"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-[rgba(242,106,33,0.12)] text-[color:var(--color-brand-orange-deep)] ring-1 ring-orange-200 group-hover:bg-white/16 group-hover:text-white group-hover:ring-white/20">
+                    <FileText className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-950 group-hover:text-white">{workFile.fileName}</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500 group-hover:text-white/75">
+                      {formatDateForDisplay(workFile.createdAt)}
+                    </p>
+                    <p className="mt-3 text-sm text-slate-600 group-hover:text-white/80">
+                      {formatInternshipWorkFileSize(workFile.fileSize)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3.5 flex flex-wrap gap-2">
+                  <a
+                    href={getInternshipWorkDownloadPath(workFile.filePath, workFile.fileName) ?? undefined}
+                    download={workFile.fileName}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-3 py-2 text-xs font-semibold text-white shadow-accent-glow transition hover:opacity-95"
+                  >
+                    <Download className="size-3.5" />
+                    ดาวน์โหลด
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="relative mt-4 text-sm leading-7 text-slate-500">ยังไม่มีผลงานที่อัปโหลด</p>
         )}
       </section>
     </section>

@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { CappedMultiFileInput } from "@/components/capped-multi-file-input";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,7 @@ import {
   type InternshipApplicationFormState,
   type InternshipAttachmentActionState,
 } from "./actions";
+import { getUploadFileDeduplicationKey } from "@/lib/upload-file-deduplication";
 
 type InternshipApplicationFormProps = {
   application: InternshipApplicationRecord | null;
@@ -86,6 +88,8 @@ const textareaClassName =
 
 const fileInputClassName =
   "block w-full rounded-2xl border border-dashed border-[color:var(--color-shell-border)] bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-[rgba(242,106,33,0.12)] file:px-4 file:py-2 file:font-semibold file:text-[color:var(--color-brand-orange-deep)] hover:file:bg-[rgba(242,106,33,0.18)] disabled:cursor-not-allowed disabled:bg-slate-50";
+
+const MAX_ATTACHMENT_COUNT = 5;
 
 function getControlClassName(baseClassName: string, hasError: boolean) {
   return hasError
@@ -383,6 +387,7 @@ export function InternshipApplicationForm({
   const currentStatusMeta = currentStatus ? internshipStatusMeta[currentStatus] : null;
   const profileImagePath = currentUser.profileImagePath ?? null;
   const isProfilePhotoRequired = !profileImagePath;
+  const existingAttachmentCount = application?.attachments.length ?? 0;
   const fieldErrors: InternshipApplicationFieldErrors = state.fieldErrors;
   const validationMessages = [...new Set(Object.values(fieldErrors).filter(Boolean))];
   const hasActionResult = Boolean(state.error || state.success || validationMessages.length);
@@ -614,14 +619,20 @@ export function InternshipApplicationForm({
 
             <Section icon={ShieldCheck} step={3} title="ไฟล์ประกอบการสมัคร">
               <Field label="อัปโหลดไฟล์ใหม่" htmlFor="attachments" hint="รองรับ PDF/PNG/JPG ขนาดไม่เกิน 5 MB ต่อไฟล์ ระบบจะเพิ่มไฟล์ใหม่ต่อจากรายการเดิมโดยรวมแล้วไม่เกิน 5 ไฟล์" error={fieldErrors.attachments} className="md:col-span-2">
-                <input
+                <CappedMultiFileInput
+                  key={`attachments-${existingAttachmentCount}`}
                   id="attachments"
                   name="attachments"
-                  type="file"
                   accept="application/pdf,image/png,image/jpeg"
-                  multiple
                   className={getControlClassName(fileInputClassName, Boolean(fieldErrors.attachments))}
                   disabled={isLocked}
+                  maxFiles={MAX_ATTACHMENT_COUNT}
+                  uploadedFileCount={existingAttachmentCount}
+                  existingFileKeys={(application?.attachments ?? []).map((attachment) =>
+                    getUploadFileDeduplicationKey(attachment.fileName, attachment.fileSize),
+                  )}
+                  description="การเลือกไฟล์รอบใหม่จะต่อจากรายการที่เลือกไว้เดิมโดยอัตโนมัติ หากเกินโควตา ระบบจะรับเฉพาะไฟล์ตามลำดับที่เลือกจนเต็ม 5 ไฟล์"
+                  emptySelectionText="ยังไม่ได้เลือกไฟล์ประกอบใหม่"
                 />
               </Field>
             </Section>

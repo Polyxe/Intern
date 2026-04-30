@@ -27,7 +27,10 @@ export async function AppHeader() {
   const accountLabel = currentUser?.role === USER_ROLES.Student ? "Student Profile" : "My Account";
   const navLinks = currentUser
     ? currentUser.role === USER_ROLES.Student
-      ? [{ href: "/intern/profile/edit", label: "แก้ไขฟอร์มฝึกงาน" }]
+      ? [
+          { href: "/intern/profile/edit", label: "แก้ไขฟอร์มฝึกงาน" },
+          { href: "/intern/work", label: "ผลงาน" },
+        ]
       : canAccessUserManagement(currentUser.role)
         ? [{ href: "/intern/manage-users", label: "จัดการผู้ใช้" }]
         : []

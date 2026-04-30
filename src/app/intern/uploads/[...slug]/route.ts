@@ -4,7 +4,7 @@ import path from "node:path";
 import { notFound } from "next/navigation";
 
 import { getLegacyStoredFileAbsolutePath, getStoredFileAbsolutePath } from "@/lib/file-storage";
-import { isInternshipAttachmentUploadPath } from "@/lib/public-paths";
+import { isInternshipAttachmentUploadPath, isInternshipWorkUploadPath } from "@/lib/public-paths";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -60,7 +60,8 @@ export async function GET(request: Request, { params }: UploadFileRouteProps) {
     const contentType = CONTENT_TYPES[extension] ?? "application/octet-stream";
     const requestedFileName = new URL(request.url).searchParams.get("download")?.trim();
     const downloadFileName = requestedFileName || getStoredDownloadFileName(filePath);
-    const shouldForceDownload = isInternshipAttachmentUploadPath(uploadPath);
+    const shouldForceDownload =
+      isInternshipAttachmentUploadPath(uploadPath) || isInternshipWorkUploadPath(uploadPath);
 
     return new Response(buffer, {
       headers: {

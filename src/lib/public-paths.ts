@@ -1,6 +1,7 @@
 export const INTERN_BASE_PATH = "/intern";
 export const INTERN_UPLOADS_PATH = `${INTERN_BASE_PATH}/uploads`;
 export const INTERNSHIP_APPLICATION_UPLOADS_SEGMENT = "internship-applications";
+export const INTERNSHIP_WORK_UPLOADS_SEGMENT = "internship-work-files";
 
 export function normalizePublicUploadPath(uploadPath?: string | null) {
   if (!uploadPath) {
@@ -24,7 +25,13 @@ export function isInternshipAttachmentUploadPath(uploadPath?: string | null) {
   return normalizedUploadPath?.includes(`/${INTERNSHIP_APPLICATION_UPLOADS_SEGMENT}/`) ?? false;
 }
 
-export function getInternshipAttachmentDownloadPath(uploadPath?: string | null, fileName?: string | null) {
+export function isInternshipWorkUploadPath(uploadPath?: string | null) {
+  const normalizedUploadPath = normalizePublicUploadPath(uploadPath);
+
+  return normalizedUploadPath?.includes(`/${INTERNSHIP_WORK_UPLOADS_SEGMENT}/`) ?? false;
+}
+
+function getInternshipUploadDownloadPath(uploadPath?: string | null, fileName?: string | null) {
   const normalizedUploadPath = normalizePublicUploadPath(uploadPath);
 
   if (!normalizedUploadPath) {
@@ -38,4 +45,12 @@ export function getInternshipAttachmentDownloadPath(uploadPath?: string | null, 
   const searchParams = new URLSearchParams({ download: fileName });
 
   return `${normalizedUploadPath}?${searchParams.toString()}`;
+}
+
+export function getInternshipAttachmentDownloadPath(uploadPath?: string | null, fileName?: string | null) {
+  return getInternshipUploadDownloadPath(uploadPath, fileName);
+}
+
+export function getInternshipWorkDownloadPath(uploadPath?: string | null, fileName?: string | null) {
+  return getInternshipUploadDownloadPath(uploadPath, fileName);
 }
