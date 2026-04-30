@@ -19,7 +19,6 @@ import {
 import {
   formatDateForDisplay,
   getInternshipStatus,
-  internshipStatusMeta,
   type InternshipApplicationRecord,
 } from "@/lib/internship-application";
 import { getInternshipAttachmentDownloadPath } from "@/lib/public-paths";
@@ -32,6 +31,56 @@ type InternshipApplicationOverviewProps = {
 
 function displayValue(value?: string | null) {
   return value?.trim() ? value : "-";
+}
+
+function getUtcDayValue(date: Date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function getDayDifference(from: Date, to: Date) {
+  return Math.floor((getUtcDayValue(to) - getUtcDayValue(from)) / 86_400_000);
+}
+
+function computeProgress(startDate?: Date | null, endDate?: Date | null) {
+  if (!startDate || !endDate) {
+    return {
+      percent: 0,
+      phase: "unknown" as const,
+      daysTotal: 0,
+      daysRemaining: 0,
+    };
+  }
+
+  const now = new Date();
+  const daysTotal = Math.max(1, getDayDifference(startDate, endDate) + 1);
+
+  if (getUtcDayValue(now) < getUtcDayValue(startDate)) {
+    return {
+      percent: 0,
+      phase: "before" as const,
+      daysTotal,
+      daysRemaining: daysTotal,
+    };
+  }
+
+  if (getUtcDayValue(now) > getUtcDayValue(endDate)) {
+    return {
+      percent: 100,
+      phase: "done" as const,
+      daysTotal,
+      daysRemaining: 0,
+    };
+  }
+
+  const elapsedDays = Math.min(daysTotal, getDayDifference(startDate, now) + 1);
+  const daysRemaining = Math.max(0, getDayDifference(now, endDate));
+
+  return {
+    percent: Math.max(1, Math.min(100, Math.round((elapsedDays / daysTotal) * 100))),
+    phase: "active" as const,
+    daysTotal,
+    daysRemaining,
+  };
 }
 
 function DetailCard({
@@ -94,18 +143,58 @@ export function InternshipApplicationOverview({
   description,
 }: InternshipApplicationOverviewProps) {
   const status = getInternshipStatus(application);
-  const statusMeta = internshipStatusMeta[status];
   const hasAttachments = application.attachments.length > 0;
   const showsRejectionReason = status === "Rejected" && Boolean(application.rejectionReason?.trim());
+  const progress = computeProgress(application.internshipStartDate, application.internshipEndDate);
 
   return (
     <section className="space-y-5">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{heading}</h2>
+        {description ? <p className="max-w-3xl text-sm leading-7 text-slate-600">{description}</p> : null}
+      </div>
+
       {showsRejectionReason ? (
         <section className="rounded-[1.5rem] border border-rose-200 bg-rose-50/90 p-4 text-sm leading-7 text-rose-900 shadow-sm">
           <p className="font-semibold">เหตุผลที่ผู้ดูแลปฏิเสธแบบฟอร์ม</p>
           <p className="mt-2 whitespace-pre-wrap">{application.rejectionReason}</p>
         </section>
       ) : null}
+
+      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant">
+        <div className="pointer-events-none absolute -bottom-16 -left-10 size-52 rounded-full bg-gradient-accent opacity-[0.12] blur-3xl" />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">ความคืบหน้าการฝึกงาน</p>
+            <h3 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">{progress.percent}% เสร็จสิ้น</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              {progress.phase === "before" && "ยังไม่เริ่มฝึกงาน กำหนดการเริ่มต้นถูกบันทึกไว้แล้ว"}
+              {progress.phase === "active" && `เหลืออีก ${progress.daysRemaining} วัน จากทั้งหมด ${progress.daysTotal} วัน`}
+              {progress.phase === "done" && "ช่วงเวลาฝึกงานสิ้นสุดแล้วและข้อมูลถูกเก็บไว้เป็นประวัติ"}
+              {progress.phase === "unknown" && "เพิ่มวันที่เริ่มและสิ้นสุดเพื่อให้ระบบคำนวณความคืบหน้าได้"}
+            </p>
+          </div>
+          <span className="hidden rounded-full bg-gradient-brand-soft px-3 py-1 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[rgba(142,85,183,0.12)] sm:inline-block">
+            {formatDateForDisplay(application.internshipStartDate)} - {formatDateForDisplay(application.internshipEndDate)}
+          </span>
+        </div>
+
+        <div className="mt-4">
+          <div className="relative h-3 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-soft)]">
+            <div className="h-full rounded-full bg-gradient-accent shadow-accent-glow" style={{ width: `${progress.percent}%` }} />
+          </div>
+          <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="size-3.5" />
+              เริ่ม {formatDateForDisplay(application.internshipStartDate)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="size-3.5 text-[color:var(--color-brand-orange-deep)]" />
+              สิ้นสุด {formatDateForDisplay(application.internshipEndDate)}
+            </span>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-5 md:grid-cols-2">
         <DetailCard icon={GraduationCap} title="ข้อมูลนักศึกษา">

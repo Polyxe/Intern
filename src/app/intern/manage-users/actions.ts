@@ -484,7 +484,7 @@ export async function updateManagedStudentDetails(
       revalidatePath(`/intern/manage-users/${userId}`);
       revalidatePath(`/intern/manage-users/${userId}/edit`);
       revalidatePath("/intern/profile");
-      revalidatePath("/intern/application");
+      revalidatePath("/intern/profile/edit");
 
       redirect(getManageUserEditHref(userId, getNextInternshipApplicationWizardStep(currentStep), requestedReturnTo));
     }
@@ -658,7 +658,7 @@ export async function updateManagedStudentDetails(
   revalidatePath(`/intern/manage-users/${userId}`);
   revalidatePath(`/intern/manage-users/${userId}/edit`);
   revalidatePath("/intern/profile");
-  revalidatePath("/intern/application");
+  revalidatePath("/intern/profile/edit");
 
   redirect(appendReturnTo(`/intern/manage-users/${userId}`, requestedReturnTo));
 }
@@ -1095,7 +1095,7 @@ export async function updateManagedApplicationApproval(
   revalidatePath(`/intern/manage-users/${userId}`);
   revalidatePath(`/intern/manage-users/${userId}/edit`);
   revalidatePath("/intern/profile");
-  revalidatePath("/intern/application");
+  revalidatePath("/intern/profile/edit");
 
   return {
     error: "",

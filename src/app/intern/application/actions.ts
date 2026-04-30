@@ -34,6 +34,7 @@ import {
 } from "@/lib/form-validation";
 import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { getStudentInternshipProfileHref } from "@/lib/student-profile-routing";
 import { getDisplayName } from "@/lib/user-management";
 import { USER_ROLES } from "@/lib/user-management";
 
@@ -201,20 +202,6 @@ function createValidationState(
         : "กรุณาตรวจสอบข้อมูลที่ระบุไว้ในแบบฟอร์มอีกครั้ง",
     fieldErrors,
   });
-}
-
-function getStudentApplicationWizardHref(step: InternshipApplicationWizardStep, options?: { edit?: boolean }) {
-  const params = new URLSearchParams();
-
-  if (options?.edit) {
-    params.set("edit", "1");
-  }
-
-  if (step > 1 || options?.edit) {
-    params.set("step", String(step));
-  }
-
-  return params.size ? `/intern/application?${params.toString()}` : "/intern/application";
 }
 
 function buildCurrentUserFormValues(currentUser: {
@@ -570,10 +557,12 @@ export async function saveInternshipApplication(
       values,
     });
 
-    revalidatePath("/intern/application");
+    revalidatePath("/intern/profile");
+    revalidatePath("/intern/profile/edit");
     redirect(
-      getStudentApplicationWizardHref(getNextInternshipApplicationWizardStep(currentStep), {
+      getStudentInternshipProfileHref({
         edit: Boolean(existingApplication),
+        step: getNextInternshipApplicationWizardStep(currentStep),
       }),
     );
   }
@@ -719,14 +708,15 @@ export async function saveInternshipApplication(
     return createState(values, { error: "ไม่สามารถบันทึกไฟล์อัปโหลดได้ กรุณาลองใหม่อีกครั้ง" });
   }
 
-  revalidatePath("/intern/application");
+  revalidatePath("/intern/profile");
+  revalidatePath("/intern/profile/edit");
   revalidatePath("/intern/profile");
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${currentUser.id}`);
 
   await clearStudentApplicationDraft();
 
-  redirect("/intern/application");
+  redirect("/intern/profile");
 }
 
 export async function deleteStudentAttachment(
@@ -833,7 +823,8 @@ export async function deleteStudentAttachment(
     );
   }
 
-  revalidatePath("/intern/application");
+  revalidatePath("/intern/profile");
+  revalidatePath("/intern/profile/edit");
   revalidatePath("/intern/profile");
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${currentUser.id}`);

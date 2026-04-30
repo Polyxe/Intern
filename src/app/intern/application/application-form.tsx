@@ -429,7 +429,7 @@ export function InternshipApplicationForm({
     setActiveStep(getPreviousInternshipApplicationWizardStep(currentStep));
   }
 
-  const previousHref = currentStep === 1 && editingExistingApplication ? "/intern/application" : null;
+  const previousHref = currentStep === 1 && editingExistingApplication ? "/intern/profile" : null;
 
   return (
     <div className="space-y-6">

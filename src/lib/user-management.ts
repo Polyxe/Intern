@@ -86,7 +86,7 @@ export async function getPostLoginPathForUser(user: TermsAwareAccountUser) {
   }
 
   if (user.role === USER_ROLES.Student && !(await studentHasCompletedProfile(user.id))) {
-    return "/intern/application";
+    return "/intern/profile";
   }
 
   return getPostLoginPath(user.role);
@@ -102,7 +102,7 @@ export async function getAccountPagePathForUser(user: TermsAwareAccountUser) {
   }
 
   if (user.role === USER_ROLES.Student && !(await studentHasCompletedProfile(user.id))) {
-    return "/intern/application";
+    return "/intern/profile";
   }
 
   return getAccountPagePath(user.role, user.id);

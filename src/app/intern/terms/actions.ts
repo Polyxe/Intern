@@ -41,7 +41,7 @@ export async function acceptStudentTerms(_: AcceptTermsState, formData: FormData
 
   revalidatePath("/intern");
   revalidatePath("/intern/profile");
-  revalidatePath("/intern/application");
+  revalidatePath("/intern/profile/edit");
   revalidatePath("/intern/terms");
 
   redirect(await getPostLoginPathForUser({

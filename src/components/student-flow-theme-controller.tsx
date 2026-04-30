@@ -7,7 +7,7 @@ type StudentFlowThemeControllerProps = {
   isStudent: boolean;
 };
 
-const studentThemeRoutePrefixes = ["/intern/terms", "/intern/application"];
+const studentThemeRoutePrefixes = ["/intern/terms", "/intern/profile"];
 
 function matchesRoutePrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -17,9 +17,7 @@ export function StudentFlowThemeController({ isStudent }: StudentFlowThemeContro
   const pathname = usePathname();
 
   useEffect(() => {
-    const shouldUseStudentTheme =
-      studentThemeRoutePrefixes.some((prefix) => matchesRoutePrefix(pathname, prefix)) ||
-      (isStudent && matchesRoutePrefix(pathname, "/intern/profile"));
+    const shouldUseStudentTheme = isStudent && studentThemeRoutePrefixes.some((prefix) => matchesRoutePrefix(pathname, prefix));
 
     document.documentElement.classList.toggle("student-flow-theme", shouldUseStudentTheme);
 
