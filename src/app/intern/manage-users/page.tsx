@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Eye, Trash2, Users } from "lucide-react";
+import { Eye, Users } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -31,14 +31,15 @@ import {
   requiresManagerProfileCompletion,
   roleLabels,
 } from "@/lib/user-management";
-import { deleteManagedAccountFromForm } from "./actions";
 
+import { ManagedAccountDeleteButton } from "./managed-account-delete-button";
 import { ManageUsersSearchControls } from "./manage-users-search-controls";
 
 type ManageUsersDashboardPageProps = {
   searchParams?: Promise<{
     role?: string;
     studentStatus?: string;
+    internshipYear?: string;
     query?: string;
     page?: string;
     fields?: string;
@@ -87,6 +88,7 @@ type ManageUsersSearchableUser = {
   application: {
     faculty: string;
     yearLevel: string;
+    internshipStartDate: Date | null;
     internshipPosition: string;
     companyName: string;
     guidingProfessorFirstname: string | null;
@@ -146,6 +148,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
           editedAfterApprovalAt: true,
           faculty: true,
           yearLevel: true,
+          internshipStartDate: true,
           internshipPosition: true,
           companyName: true,
           guidingProfessorFirstname: true,
@@ -172,10 +175,14 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
     filters.role === MANAGE_USER_ROLE_FILTERS.Admin
       ? allManagerUsers
       : allStudentUsers.filter((user) => matchesStudentStatusFilter(user.application, filters.studentStatus));
+  const yearFilteredUsers =
+    filters.role === MANAGE_USER_ROLE_FILTERS.Admin || !filters.internshipYear
+      ? filteredUsers
+      : filteredUsers.filter((user) => getInternshipStartYear(user.application) === filters.internshipYear);
   const queryTokens = getManageUsersSearchTokens(filters.query);
   const searchedUsers = queryTokens.length
-    ? filteredUsers.filter((user) => matchesManageUsersSearch(user, filters.role, filters.selectedFields, queryTokens))
-    : filteredUsers;
+    ? yearFilteredUsers.filter((user) => matchesManageUsersSearch(user, filters.role, filters.selectedFields, queryTokens))
+    : yearFilteredUsers;
   const sortedUsers = [...searchedUsers].sort((left, right) => {
     const rightNeedsReview = Number(wasEditedAfterApproval(right.application));
     const leftNeedsReview = Number(wasEditedAfterApproval(left.application));
@@ -194,6 +201,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
       getCanonicalManageUsersHref(currentUser.role, {
         role: filters.role,
         studentStatus: filters.studentStatus,
+        internshipYear: filters.internshipYear,
         query: filters.query,
         page: currentPage,
         fields: filters.selectedFields,
@@ -259,6 +267,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                     href={getCanonicalManageUsersHref(currentUser.role, {
                       role: MANAGE_USER_ROLE_FILTERS.Student,
                       studentStatus: filters.studentStatus,
+                      internshipYear: filters.internshipYear,
                       query: filters.query,
                       fields: filters.selectedFields,
                     })}
@@ -269,6 +278,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                     href={getCanonicalManageUsersHref(currentUser.role, {
                       role: MANAGE_USER_ROLE_FILTERS.Admin,
                       studentStatus: filters.studentStatus,
+                      internshipYear: "",
                       query: filters.query,
                       fields: filters.selectedFields,
                     })}
@@ -287,6 +297,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                       href={getCanonicalManageUsersHref(currentUser.role, {
                         role: MANAGE_USER_ROLE_FILTERS.Student,
                         studentStatus: statusFilter,
+                        internshipYear: filters.internshipYear,
                         query: filters.query,
                         fields: filters.selectedFields,
                       })}
@@ -311,6 +322,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
               managerRole={currentUser.role}
               role={filters.role}
               studentStatus={filters.studentStatus}
+              internshipYear={filters.internshipYear}
               query={filters.query}
               page={currentPage}
               selectedFields={filters.selectedFields}
@@ -334,6 +346,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                       href={getCanonicalManageUsersHref(currentUser.role, {
                         role: filters.role,
                         studentStatus: filters.studentStatus,
+                        internshipYear: filters.internshipYear,
                         query: filters.query,
                         page: Math.max(1, currentPage - 1),
                         fields: filters.selectedFields,
@@ -347,6 +360,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                         href={getCanonicalManageUsersHref(currentUser.role, {
                           role: filters.role,
                           studentStatus: filters.studentStatus,
+                          internshipYear: filters.internshipYear,
                           query: filters.query,
                           page: pageNumber,
                           fields: filters.selectedFields,
@@ -359,6 +373,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                       href={getCanonicalManageUsersHref(currentUser.role, {
                         role: filters.role,
                         studentStatus: filters.studentStatus,
+                        internshipYear: filters.internshipYear,
                         query: filters.query,
                         page: Math.min(totalPages, currentPage + 1),
                         fields: filters.selectedFields,
@@ -434,17 +449,11 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                             ดูข้อมูล
                           </Link>
                           {canDeleteAccount ? (
-                            <form action={deleteManagedAccountFromForm}>
-                              <input type="hidden" name="userId" value={user.id} />
-                              <input type="hidden" name="returnTo" value={filters.canonicalHref} />
-                              <button
-                                type="submit"
-                                className="inline-flex h-10 items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-                              >
-                                <Trash2 className="size-4" />
-                                ลบบัญชี
-                              </button>
-                            </form>
+                            <ManagedAccountDeleteButton
+                              userId={user.id}
+                              returnTo={filters.canonicalHref}
+                              userDisplayName={getDisplayName(user)}
+                            />
                           ) : null}
                         </div>
                       </div>
@@ -617,6 +626,12 @@ function getManageUsersSearchEntries(
   }
 
   return entries.filter((entry) => entry.value.trim());
+}
+
+function getInternshipStartYear(application: ManageUsersSearchableUser["application"]) {
+  return application?.internshipStartDate
+    ? String(application.internshipStartDate.getUTCFullYear() + 543)
+    : null;
 }
 
 function getManageUsersSearchPreviewItems(

@@ -10,6 +10,7 @@ type ManageUsersSearchControlsProps = {
   managerRole: string;
   role: string;
   studentStatus: string;
+  internshipYear: string;
   query: string;
   page: number;
   selectedFields: readonly string[];
@@ -29,6 +30,7 @@ export function ManageUsersSearchControls({
   managerRole,
   role,
   studentStatus,
+  internshipYear,
   query,
   page,
   selectedFields,
@@ -40,16 +42,31 @@ export function ManageUsersSearchControls({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [draftQuery, setDraftQuery] = useState(query);
+  const [draftInternshipYear, setDraftInternshipYear] = useState(internshipYear);
   const [draftSelectedFields, setDraftSelectedFields] = useState<readonly string[]>(selectedFields);
   const [showFieldSelector, setShowFieldSelector] = useState(false);
+  const showInternshipYearFilter = role === "student";
+  const normalizedDraftInternshipYear = normalizeInternshipYearInput(draftInternshipYear);
+  const effectiveInternshipYear =
+    showInternshipYearFilter && draftInternshipYear.trim() === "" ? internshipYear : normalizedDraftInternshipYear;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      if (draftInternshipYear.trim() && !normalizedDraftInternshipYear) {
+        return;
+      }
+
       const nextHref = getCanonicalManageUsersHref(managerRole, {
         role,
         studentStatus,
+        internshipYear: effectiveInternshipYear,
         query: draftQuery,
-        page: draftQuery.trim() === query && areFieldsEqual(draftSelectedFields, selectedFields) ? page : 1,
+        page:
+          draftQuery.trim() === query
+          && effectiveInternshipYear === internshipYear
+          && areFieldsEqual(draftSelectedFields, selectedFields)
+            ? page
+            : 1,
         fields: draftSelectedFields,
       });
 
@@ -68,6 +85,7 @@ export function ManageUsersSearchControls({
   }, [
     canonicalHref,
     draftQuery,
+    draftInternshipYear,
     draftSelectedFields,
     managerRole,
     page,
@@ -77,15 +95,23 @@ export function ManageUsersSearchControls({
     selectedFields,
     startTransition,
     studentStatus,
+    internshipYear,
+    normalizedDraftInternshipYear,
+    effectiveInternshipYear,
   ]);
 
-  const isDirty = draftQuery.trim() !== query || !areFieldsEqual(draftSelectedFields, selectedFields);
+  const isDirty =
+    draftQuery.trim() !== query
+    || effectiveInternshipYear !== internshipYear
+    || !areFieldsEqual(draftSelectedFields, selectedFields);
   const hasAllFieldsSelected = areFieldsEqual(draftSelectedFields, allFields);
 
   return (
     <div className="space-y-3">
       {/* Search bar row */}
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+      <div
+        className={`grid gap-3 ${showInternshipYearFilter ? "xl:grid-cols-[minmax(0,1fr)_18rem_auto]" : "xl:grid-cols-[minmax(0,1fr)_auto]"}`}
+      >
         <div className="relative">
           <input
             id="query"
@@ -108,6 +134,34 @@ export function ManageUsersSearchControls({
             </span>
           </div>
         </div>
+
+        {showInternshipYearFilter ? (
+          <div className="flex h-12 items-center gap-3 rounded-2xl border-2 border-[rgba(142,85,183,0.3)] bg-[linear-gradient(135deg,rgba(142,85,183,0.12),rgba(242,106,33,0.08))] px-4 shadow-[0_10px_30px_rgba(142,85,183,0.08)] transition focus-within:border-[color:var(--color-brand-orange-deep)] focus-within:ring-4 focus-within:ring-[rgba(242,106,33,0.14)]">
+            <label
+              htmlFor="internshipYear"
+              className="shrink-0 rounded-full bg-white/85 px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] text-[color:var(--color-brand-violet-deep)] shadow-sm"
+            >
+              ปีฝึกงาน พ.ศ.
+            </label>
+            <input
+              id="internshipYear"
+              name="internshipYear"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              value={draftInternshipYear}
+              onChange={(event) => {
+                const nextValue = event.target.value.replace(/\D+/g, "").slice(0, 4);
+
+                setDraftInternshipYear(nextValue);
+              }}
+              className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 text-right text-base font-bold tracking-[0.08em] text-slate-950 outline-none placeholder:text-slate-500"
+              placeholder="2569"
+              aria-label="ปีฝึกงาน พ.ศ."
+            />
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -226,6 +280,7 @@ function getCanonicalManageUsersHref(
   filters: {
     role: string;
     studentStatus: string;
+    internshipYear: string;
     query: string;
     page: number;
     fields: readonly string[];
@@ -243,6 +298,10 @@ function getCanonicalManageUsersHref(
     params.set("studentStatus", filters.studentStatus);
   }
 
+  if (filters.role === "student" && filters.internshipYear) {
+    params.set("internshipYear", filters.internshipYear);
+  }
+
   if (trimmedQuery) {
     params.set("query", trimmedQuery);
   }
@@ -258,6 +317,12 @@ function getCanonicalManageUsersHref(
   const queryString = params.toString();
 
   return queryString ? `${MANAGE_USERS_PATH}?${queryString}` : MANAGE_USERS_PATH;
+}
+
+function normalizeInternshipYearInput(value: string) {
+  const normalizedValue = value.trim();
+
+  return /^\d{4}$/.test(normalizedValue) ? normalizedValue : "";
 }
 
 function areFieldsEqual(left: readonly string[], right: readonly string[]) {

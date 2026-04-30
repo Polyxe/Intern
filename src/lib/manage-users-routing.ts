@@ -12,6 +12,10 @@ const PROFILE_PATH = "/intern/profile";
 const MANAGE_USERS_RETURN_TO_BASE = "https://manage-users.local";
 const SUPERADMIN_ROLE: UserRole = "Superadmin";
 
+function getCurrentBuddhistYear() {
+  return String(new Date().getFullYear() + 543);
+}
+
 export const MANAGE_USERS_SEARCH_FIELDS = {
   Name: "name",
   Email: "email",
@@ -67,6 +71,12 @@ function normalizeManageUsersSearchQuery(value: string | undefined) {
   return value?.trim() ?? "";
 }
 
+function normalizeManageUsersInternshipYear(value: string | undefined) {
+  const normalizedValue = value?.trim() ?? "";
+
+  return /^\d{4}$/.test(normalizedValue) ? normalizedValue : getCurrentBuddhistYear();
+}
+
 function normalizeManageUsersPage(value: string | undefined) {
   const parsedValue = Number.parseInt(value ?? "", 10);
 
@@ -120,6 +130,7 @@ export function getCanonicalManageUsersHref(
   filters?: {
     role?: ManageUserRoleFilter;
     studentStatus?: StudentStatusFilter;
+    internshipYear?: string;
     query?: string;
     page?: number;
     fields?: readonly ManageUsersSearchField[];
@@ -127,6 +138,10 @@ export function getCanonicalManageUsersHref(
 ) {
   const role = filters?.role ?? getDefaultManageUsersRoleFilter(managerRole);
   const studentStatus = filters?.studentStatus ?? STUDENT_STATUS_FILTERS.All;
+  const internshipYear =
+    role === MANAGE_USER_ROLE_FILTERS.Student
+      ? normalizeManageUsersInternshipYear(filters?.internshipYear)
+      : "";
   const query = normalizeManageUsersSearchQuery(filters?.query);
   const page = filters?.page && filters.page > 1 ? filters.page : 1;
   const selectedFields = normalizeManageUsersSearchFields(role, filters?.fields);
@@ -139,6 +154,10 @@ export function getCanonicalManageUsersHref(
 
   if (studentStatus !== STUDENT_STATUS_FILTERS.All) {
     params.set("studentStatus", studentStatus);
+  }
+
+  if (internshipYear) {
+    params.set("internshipYear", internshipYear);
   }
 
   if (query) {
@@ -161,6 +180,7 @@ export function getCanonicalManageUsersHref(
 export function resolveManageUsersFilters(managerRole: UserRole, searchParams: RawSearchParams | undefined) {
   const rawRole = getSingleValue(searchParams?.role);
   const rawStudentStatus = getSingleValue(searchParams?.studentStatus);
+  const rawInternshipYear = getSingleValue(searchParams?.internshipYear);
   const rawQuery = getSingleValue(searchParams?.query);
   const rawPage = getSingleValue(searchParams?.page);
   const rawFields = getSingleValue(searchParams?.fields);
@@ -171,12 +191,15 @@ export function resolveManageUsersFilters(managerRole: UserRole, searchParams: R
   const studentStatus = isStudentStatusFilter(rawStudentStatus)
     ? rawStudentStatus
     : STUDENT_STATUS_FILTERS.All;
+  const internshipYear =
+    role === MANAGE_USER_ROLE_FILTERS.Student ? normalizeManageUsersInternshipYear(rawInternshipYear) : "";
   const query = normalizeManageUsersSearchQuery(rawQuery);
   const page = normalizeManageUsersPage(rawPage);
   const selectedFields = normalizeManageUsersSearchFields(role, rawFields);
   const canonicalHref = getCanonicalManageUsersHref(managerRole, {
     role,
     studentStatus,
+    internshipYear,
     query,
     page,
     fields: selectedFields,
@@ -189,6 +212,10 @@ export function resolveManageUsersFilters(managerRole: UserRole, searchParams: R
 
   if (rawStudentStatus) {
     incomingParams.set("studentStatus", rawStudentStatus);
+  }
+
+  if (rawInternshipYear) {
+    incomingParams.set("internshipYear", rawInternshipYear);
   }
 
   if (rawQuery) {
@@ -208,6 +235,7 @@ export function resolveManageUsersFilters(managerRole: UserRole, searchParams: R
   return {
     role,
     studentStatus,
+    internshipYear,
     query,
     page,
     selectedFields,

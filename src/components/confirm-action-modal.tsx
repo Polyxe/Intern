@@ -9,6 +9,7 @@ type ConfirmActionModalProps = {
   title: string;
   description: string;
   confirmLabel: string;
+  pendingLabel?: string;
   cancelLabel?: string;
   pending?: boolean;
   onCancel: () => void;
@@ -21,6 +22,7 @@ export function ConfirmActionModal({
   title,
   description,
   confirmLabel,
+  pendingLabel = "กำลังอัปเดต...",
   cancelLabel = "ยกเลิก",
   pending = false,
   onCancel,
@@ -56,7 +58,7 @@ export function ConfirmActionModal({
             disabled={pending}
             onClick={onConfirm}
           >
-            {pending ? "กำลังอัปเดต..." : confirmLabel}
+            {pending ? pendingLabel : confirmLabel}
           </Button>
         </div>
       </div>

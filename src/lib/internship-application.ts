@@ -286,13 +286,20 @@ export function wasEditedAfterApproval(
 export function getManageUsersEmptyStateMessage(filters: {
   role: ManageUserRoleFilter;
   studentStatus: StudentStatusFilter;
+  internshipYear?: string;
 }) {
   if (filters.role === MANAGE_USER_ROLE_FILTERS.Admin) {
     return "ไม่พบบัญชีผู้ดูแลระบบในขณะนี้";
   }
 
   if (filters.studentStatus === STUDENT_STATUS_FILTERS.All) {
-    return "ไม่พบบัญชีนักศึกษาในขณะนี้";
+    return filters.internshipYear
+      ? `ไม่พบบัญชีนักศึกษาที่เริ่มฝึกงานในปี ${filters.internshipYear}`
+      : "ไม่พบบัญชีนักศึกษาในขณะนี้";
+  }
+
+  if (filters.internshipYear) {
+    return `ไม่พบบัญชีนักศึกษาที่อยู่ในสถานะ ${studentStatusFilterMeta[filters.studentStatus].emptyStateLabel} และเริ่มฝึกงานในปี ${filters.internshipYear}`;
   }
 
   return `ไม่พบบัญชีนักศึกษาที่อยู่ในสถานะ ${studentStatusFilterMeta[filters.studentStatus].emptyStateLabel}`;
