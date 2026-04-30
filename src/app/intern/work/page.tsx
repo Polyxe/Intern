@@ -5,7 +5,7 @@ import { BriefcaseBusiness, FileStack, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  canStudentEditApplication,
+  canStudentManageWorkFiles,
   getInternshipStatus,
   internshipApplicationSelect,
   internshipStatusMeta,
@@ -37,7 +37,7 @@ export default async function StudentWorkPage() {
 
   const status = application ? getInternshipStatus(application) : null;
   const statusMeta = status ? internshipStatusMeta[status] : null;
-  const canManageWorkFiles = application ? canStudentEditApplication(application) : false;
+  const canManageWorkFiles = application ? canStudentManageWorkFiles(application) : false;
 
   return (
     <main className="page-shell" data-student-flow>

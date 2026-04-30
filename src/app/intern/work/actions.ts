@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/lib/auth";
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
-import { canStudentEditApplication } from "@/lib/internship-application";
+import { canStudentManageWorkFiles } from "@/lib/internship-application";
 import {
   MAX_STUDENT_WORK_FILES,
   MAX_STUDENT_WORK_FILE_SIZE_BYTES,
@@ -108,9 +108,9 @@ export async function uploadStudentWorkFiles(
     };
   }
 
-  if (!canStudentEditApplication(application)) {
+  if (!canStudentManageWorkFiles(application)) {
     return {
-      error: "ไม่สามารถอัปโหลดผลงานได้อีก เนื่องจากสถานะฝึกงานเสร็จสิ้นแล้ว",
+      error: "สามารถอัปโหลดผลงานได้เฉพาะเมื่อสถานะฝึกงานเป็นกำลังฝึกงานเท่านั้น",
     };
   }
 
@@ -235,9 +235,9 @@ export async function deleteStudentWorkFile(
     };
   }
 
-  if (!canStudentEditApplication(workFile.application)) {
+  if (!canStudentManageWorkFiles(workFile.application)) {
     return {
-      error: "ไม่สามารถลบผลงานได้อีก เนื่องจากสถานะฝึกงานเสร็จสิ้นแล้ว",
+      error: "สามารถลบผลงานได้เฉพาะเมื่อสถานะฝึกงานเป็นกำลังฝึกงานเท่านั้น",
     };
   }
 

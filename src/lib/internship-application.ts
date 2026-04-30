@@ -267,6 +267,12 @@ export function canStudentEditApplication(
   return application.status !== INTERNSHIP_APPLICATION_STATUSES.Finished;
 }
 
+export function canStudentManageWorkFiles(
+  application: Pick<InternshipApplicationRecord, "status">,
+) {
+  return application.status === INTERNSHIP_APPLICATION_STATUSES.Ongoing;
+}
+
 export function isApprovedInternshipStatus(status: InternshipApplicationStatus) {
   return status === INTERNSHIP_APPLICATION_STATUSES.Ongoing || status === INTERNSHIP_APPLICATION_STATUSES.Finished;
 }

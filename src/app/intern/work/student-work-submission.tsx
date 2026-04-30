@@ -165,7 +165,7 @@ export function StudentWorkSubmission({
           <div className="mt-5 rounded-[1.5rem] border border-amber-200 bg-amber-50/90 p-4 text-sm leading-7 text-amber-900 shadow-sm">
             <p className="inline-flex items-center gap-2 font-semibold">
               <LockKeyhole className="size-4" />
-              สถานะฝึกงานเสร็จสิ้นแล้ว จึงไม่สามารถเพิ่มหรือลบผลงานได้อีก
+              จัดการผลงานได้เฉพาะเมื่อสถานะฝึกงานเป็นกำลังฝึกงานเท่านั้น
             </p>
           </div>
         ) : null}
