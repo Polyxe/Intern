@@ -1,6 +1,6 @@
 import "server-only";
 
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -25,6 +25,47 @@ export function getLegacyStoredFileAbsolutePath(uploadPath: string) {
   return path.join(LEGACY_PUBLIC_UPLOADS_DIRECTORY, normalizeUploadPath(uploadPath));
 }
 
+function isWithinDirectory(targetPath: string, baseDirectory: string) {
+  const relativePath = path.relative(baseDirectory, targetPath);
+
+  return relativePath !== "" && !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+}
+
+async function pruneEmptyParentDirectories(absoluteFilePath: string, baseDirectory: string) {
+  let currentDirectory = path.dirname(absoluteFilePath);
+
+  while (isWithinDirectory(currentDirectory, baseDirectory)) {
+    try {
+      const entries = await readdir(currentDirectory);
+
+      if (entries.length > 0) {
+        return;
+      }
+
+      await rmdir(currentDirectory);
+    } catch {
+      return;
+    }
+
+    currentDirectory = path.dirname(currentDirectory);
+  }
+}
+
+async function deleteStoredFileAtBaseDirectory(
+  filePath: string,
+  resolveAbsolutePath: (uploadPath: string) => string,
+  baseDirectory: string,
+) {
+  const absoluteFilePath = resolveAbsolutePath(filePath);
+
+  try {
+    await rm(absoluteFilePath, { force: true });
+    await pruneEmptyParentDirectories(absoluteFilePath, baseDirectory);
+  } catch {
+    // Ignore cleanup failures for missing files.
+  }
+}
+
 export async function saveUploadedFile(file: File, directory: string) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const safeName = sanitizeFileName(file.name || "file");
@@ -47,15 +88,10 @@ export async function saveUploadedFile(file: File, directory: string) {
 export async function deleteStoredFiles(filePaths: string[]) {
   await Promise.all(
     filePaths.filter(Boolean).map(async (filePath) => {
-      try {
-        await rm(getStoredFileAbsolutePath(filePath), { force: true });
-      } catch {
-        try {
-          await rm(getLegacyStoredFileAbsolutePath(filePath), { force: true });
-        } catch {
-          // Ignore cleanup failures for missing files.
-        }
-      }
+      await Promise.all([
+        deleteStoredFileAtBaseDirectory(filePath, getStoredFileAbsolutePath, UPLOADS_DIRECTORY),
+        deleteStoredFileAtBaseDirectory(filePath, getLegacyStoredFileAbsolutePath, LEGACY_PUBLIC_UPLOADS_DIRECTORY),
+      ]);
     }),
   );
 }
