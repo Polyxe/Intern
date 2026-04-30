@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { USER_ROLES } from "@/lib/user-management";
 import { sendNotificationEmail } from "@/lib/email";
+import { USER_ROLES } from "@/lib/user-management";
 import {
   getAdminTelegramChatId,
-  getStudentTelegramChatId,
   sendTelegramMessage,
 } from "@/lib/telegram";
 
@@ -95,11 +94,6 @@ export async function notifyUser(
 ) {
   await createNotification(userId, title, message);
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-
   if (options?.email?.recipientEmail) {
     await deliverNotificationEmail(title, message, {
       recipients: [options.email.recipientEmail],
@@ -109,13 +103,6 @@ export async function notifyUser(
       actionLabel: options.email.actionLabel,
     });
   }
-
-  await deliverNotificationTelegram(title, message, {
-    chatId:
-      user?.role === USER_ROLES.Student ? getStudentTelegramChatId() : getAdminTelegramChatId(),
-    actionPath: options?.email?.actionPath,
-    actionLabel: options?.email?.actionLabel,
-  });
 }
 
 export async function createNotificationsForAdmins(title: string, message: string) {

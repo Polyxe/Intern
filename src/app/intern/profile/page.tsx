@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Edit3, User } from "lucide-react";
+import { Edit3 } from "lucide-react";
 
-import { AccountProfileOverview } from "@/components/account-profile-overview";
 import { StudentProfileOverview } from "@/components/student-profile-overview";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
@@ -13,7 +12,12 @@ import {
   internshipStatusMeta,
 } from "@/lib/internship-application";
 import { prisma } from "@/lib/prisma";
-import { canAccessUserManagement, getDisplayName, requiresStudentTermsAcceptance } from "@/lib/user-management";
+import {
+  canAccessUserManagement,
+  getAccountPagePath,
+  getDisplayName,
+  requiresStudentTermsAcceptance,
+} from "@/lib/user-management";
 
 export default async function InternProfilePage() {
   const currentUser = await getCurrentUser();
@@ -27,6 +31,11 @@ export default async function InternProfilePage() {
   }
 
   const canManageUsers = canAccessUserManagement(currentUser.role);
+
+  if (canManageUsers) {
+    redirect(getAccountPagePath(currentUser.role, currentUser.id));
+  }
+
   const isStudent = currentUser.role === "Student";
   const application =
     isStudent
@@ -52,9 +61,7 @@ export default async function InternProfilePage() {
             <div className="space-y-4">
 
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  {isStudent ? getDisplayName(currentUser) : "ข้อมูลบัญชีผู้ใช้"}
-                </h1>
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{getDisplayName(currentUser)}</h1>
               </div>
 
               {isStudent && application ? (
@@ -79,54 +86,21 @@ export default async function InternProfilePage() {
                   size="lg"
                   className="h-11 rounded-xl bg-gradient-accent px-5 text-sm font-bold text-white shadow-accent-glow hover:opacity-95"
                 >
-                  <Link href="/intern/application">
+                  <Link href={application ? (canEditApplication ? "/intern/application?edit=1" : "/intern/application") : "/intern/application"}>
                     <Edit3 className="size-4" />
-                    {application ? (canEditApplication ? "แก้ไขข้อมูลฝึกงาน" : "เปิดดูข้อมูลฝึกงาน") : "เริ่มกรอกข้อมูลฝึกงาน"}
+                    {application ? (canEditApplication ? "แก้ไขโปรไฟล์และข้อมูลฝึกงาน" : "เปิดดูข้อมูลฝึกงาน") : "เริ่มกรอกข้อมูลฝึกงาน"}
                   </Link>
                 </Button>
-              ) : canManageUsers ? (
-                <div className="rounded-2xl border border-white/16 bg-white/10 px-4 py-3 text-sm leading-6 text-white/78 backdrop-blur">
-                  ใช้แถบนำทางด้านบนเพื่อเปิดหน้า `จัดการผู้ใช้` และกลับมาที่บัญชีของคุณได้ตลอดเวลา
-                </div>
               ) : null}
             </div>
           </div>
         </section>
 
-        {isStudent ? (
-          <StudentProfileOverview
-            heading={`โปรไฟล์ของ ${getDisplayName(currentUser)}`}
-            description="ระบบรวมข้อมูลส่วนตัว ข้อมูลการฝึกงาน และไฟล์แนบทั้งหมดไว้ในมุมมองเดียว เพื่อให้ตรวจสอบได้ง่ายทั้งสำหรับนักศึกษาและผู้ดูแล"
-            user={currentUser}
-            application={application}
-          />
-        ) : (
-          <AccountProfileOverview
-            heading={`บัญชีของ ${getDisplayName(currentUser)}`}
-            description="ข้อมูลในหน้านี้เป็นข้อมูลบัญชีพื้นฐานที่ถูกสร้างไว้ตั้งแต่ต้นสำหรับการใช้งานระบบจัดการบัญชี"
-            user={currentUser}
-          />
-        )}
-
-        {canManageUsers ? (
-          <section className="card-surface p-8 sm:p-10">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-3">
-                <span className="inline-flex items-center rounded-full bg-[color:var(--color-brand-surface)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
-                  User Management
-                </span>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">แดชบอร์ดจัดการบัญชีผู้ใช้</h2>
-                <p className="max-w-2xl text-sm leading-7 text-slate-600">
-                  เปิดหน้าจัดการเพื่อสร้างบัญชีใหม่ ดูรายการผู้ใช้ที่เข้าถึงได้ และเปิดรายละเอียดรายบัญชีสำหรับการจัดการต่อ
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-[color:var(--color-shell-border)] bg-white/70 px-4 py-3 text-sm leading-6 text-slate-600">
-                หน้า `จัดการผู้ใช้` ถูกผูกไว้ใน navbar แล้ว และจะแสดงสถานะ active เมื่อคุณเข้าไปทำงานต่อ
-              </div>
-            </div>
-          </section>
-        ) : null}
+        <StudentProfileOverview
+          heading={`โปรไฟล์ของ ${getDisplayName(currentUser)}`}
+          user={currentUser}
+          application={application}
+        />
       </div>
     </main>
   );

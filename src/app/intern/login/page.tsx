@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { ArrowRight, BriefcaseBusiness, GraduationCap, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import cmuLogo from "../../Chiang_mai_university_logo.png";
 import googleLogo from "../../Google.png";
@@ -60,12 +60,6 @@ export default async function InternLoginPage({ searchParams }: InternLoginPageP
                 </h1>
               </div>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <InfoTile icon={ShieldCheck} label="การเข้าสู่ระบบ" detail="ใช้อีเมลที่ได้รับอนุญาตแล้วเท่านั้น" />
-              <InfoTile icon={GraduationCap} label="ต้องทำอะไร?" detail="กรอกข้อมูลฝึกงาน แล้วรอผลการพิจารณา" />
-              <InfoTile icon={BriefcaseBusiness} label="หากพบปัญหา" detail="ติดต่อผู้ดูแลระบบเพื่อขอความช่วยเหลือ" />
-            </div>
           </div>
         </section>
 
@@ -73,9 +67,6 @@ export default async function InternLoginPage({ searchParams }: InternLoginPageP
           <div className="mb-6 space-y-3">
             <span className="section-kicker">Sign In</span>
             <h2 className="text-3xl font-semibold text-slate-950">เข้าสู่ระบบ</h2>
-            <p className="text-sm leading-7 text-slate-600">
-              เลือกผู้ให้บริการยืนยันตัวตนที่สอดคล้องกับบัญชีที่ผู้ดูแลระบบกำกับไว้
-            </p>
           </div>
 
           {oauthMessage ? (
@@ -150,23 +141,5 @@ export default async function InternLoginPage({ searchParams }: InternLoginPageP
         </section>
       </div>
     </main>
-  );
-}
-
-function InfoTile({
-  icon: Icon,
-  label,
-  detail,
-}: {
-  icon: typeof ShieldCheck;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
-      <Icon className="size-5 text-white" />
-      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-white/82">{detail}</p>
-    </div>
   );
 }

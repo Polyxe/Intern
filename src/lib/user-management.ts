@@ -11,6 +11,11 @@ export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
 type TermsAwareUser = {
   role: UserRole;
   acceptedTermsAt?: Date | null;
+  lastname?: string;
+  sex?: string | null;
+  birthDate?: Date | null;
+  address?: string | null;
+  institution?: string | null;
 };
 
 type TermsAwareAccountUser = TermsAwareUser & {
@@ -40,6 +45,24 @@ export function requiresStudentTermsAcceptance(user: TermsAwareUser) {
   return user.role === USER_ROLES.Student && !user.acceptedTermsAt;
 }
 
+export function hasCompletedManagerProfile(user: TermsAwareUser) {
+  if (user.role !== USER_ROLES.Admin) {
+    return true;
+  }
+
+  return Boolean(
+    user.lastname?.trim() &&
+      user.sex?.trim() &&
+      user.birthDate &&
+      user.address?.trim() &&
+      user.institution?.trim(),
+  );
+}
+
+export function requiresManagerProfileCompletion(user: TermsAwareUser) {
+  return user.role === USER_ROLES.Admin && !hasCompletedManagerProfile(user);
+}
+
 async function studentHasCompletedProfile(userId: string) {
   const application = await prisma.internshipApplication.findUnique({
     where: { userId },
@@ -58,6 +81,10 @@ export async function getPostLoginPathForUser(user: TermsAwareAccountUser) {
     return "/intern/terms";
   }
 
+  if (requiresManagerProfileCompletion(user)) {
+    return getAccountPagePath(user.role, user.id);
+  }
+
   if (user.role === USER_ROLES.Student && !(await studentHasCompletedProfile(user.id))) {
     return "/intern/application";
   }
@@ -66,7 +93,7 @@ export async function getPostLoginPathForUser(user: TermsAwareAccountUser) {
 }
 
 export function getAccountPagePath(role: UserRole, userId: string) {
-  return role === USER_ROLES.Student ? "/intern/profile" : `/intern/manage-users/${userId}`;
+  return canAccessUserManagement(role) ? `/intern/manage-users/${userId}/edit` : "/intern/profile";
 }
 
 export async function getAccountPagePathForUser(user: TermsAwareAccountUser) {

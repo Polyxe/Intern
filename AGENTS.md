@@ -16,6 +16,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Read the local Next docs in [node_modules/next/dist/docs/index.md](node_modules/next/dist/docs/index.md) before changing framework-facing code. Prefer local docs over memory for Next 16.2.4 behavior.
 - Keep framework work aligned with the versions in [package.json](package.json). Do not upgrade `next` or `eslint-config-next` from 16.2.4 unless the user explicitly asks for a version change.
 - Keep database work aligned with Prisma 7 in [package.json](package.json). Do not replace Prisma, switch ORM/query layers, or upgrade Prisma major versions unless the user explicitly asks.
+- Keep user-facing copy brief. Do not add unnecessary descriptions, and do not write UI text that talks down to the user or makes them look uninformed.
 - Keep App Router code under [src/app](src/app). `layout.tsx` defines the root shell and fonts; `page.tsx` is the current landing page.
 - Default to server components in `src/app`; add client boundaries only when hooks, browser APIs, or client-only interactivity require them.
 - Keep Prisma schema changes in [prisma/schema.prisma](prisma/schema.prisma) and Prisma CLI config in [prisma.config.ts](prisma.config.ts). Treat generated client code under `src/generated/prisma` as generated output, not hand-edited source.

@@ -32,12 +32,14 @@ const initialState: ManageUsersState = {
 export function ApplicationReviewForm({ application, userId, layout = "panel" }: ApplicationReviewFormProps) {
   const [state, formAction, pending] = useActionState(updateManagedApplicationApproval, initialState);
   const [selectedStatus, setSelectedStatus] = useState<InternshipApplicationStatus>(application.status);
+  const [rejectionReason, setRejectionReason] = useState(application.rejectionReason ?? "");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const currentStatus = getInternshipStatus(application);
   const currentStatusMeta = internshipStatusMeta[currentStatus];
   const showsReapprovalNotice = wasEditedAfterApproval(application);
   const isHeaderLayout = layout === "header";
+  const requiresRejectionReason = selectedStatus === INTERNSHIP_APPLICATION_STATUSES.Rejected;
   const confirmation = useMemo(
     () => getStatusChangeConfirmationContent(application.status, selectedStatus),
     [application.status, selectedStatus],
@@ -47,6 +49,7 @@ export function ApplicationReviewForm({ application, userId, layout = "panel" }:
     <form ref={formRef} action={formAction} className={isHeaderLayout ? "space-y-4" : "space-y-5"}>
       <input type="hidden" name="userId" value={userId} />
       <input type="hidden" name="status" value={selectedStatus} />
+      <input type="hidden" name="rejectionReason" value={rejectionReason} />
 
       {showsReapprovalNotice ? (
         <div
@@ -62,17 +65,7 @@ export function ApplicationReviewForm({ application, userId, layout = "panel" }:
         </div>
       ) : null}
 
-      {isHeaderLayout ? (
-        <div className="rounded-[1.45rem] border border-white/70 bg-white/95 p-4 shadow-[0_18px_40px_rgba(36,18,62,0.12)]">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">สถานะปัจจุบัน</span>
-          <div
-            className={`mt-3 inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm ${currentStatusMeta.headerBadgeClassName}`}
-          >
-            {currentStatusMeta.label}
-          </div>
-          <p className="mt-3 text-sm leading-6 text-slate-600">{currentStatusMeta.description}</p>
-        </div>
-      ) : (
+      {!isHeaderLayout ? (
         <div className="rounded-3xl border border-[color:var(--color-shell-border)] bg-[linear-gradient(135deg,_rgba(247,242,252,0.94),_rgba(255,249,243,0.94))] p-5">
           <p className="text-sm font-semibold tracking-[0.18em] text-[color:var(--color-brand-violet-deep)] uppercase">
             สถานะปัจจุบัน
@@ -80,23 +73,18 @@ export function ApplicationReviewForm({ application, userId, layout = "panel" }:
           <div className={`mt-3 inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold ${currentStatusMeta.badgeClassName}`}>
             {currentStatusMeta.label}
           </div>
-          <p className="mt-3 text-sm leading-7 text-slate-600">{currentStatusMeta.description}</p>
         </div>
-      )}
+      ) : null}
 
       <div className="space-y-3">
-        <div>
-          <p className={isHeaderLayout ? "text-sm font-medium text-white/88" : "text-sm font-medium text-slate-700"}>การดำเนินการของผู้ดูแล</p>
-          <p className={isHeaderLayout ? "mt-1 text-sm leading-6 text-white/72" : "mt-1 text-sm leading-7 text-slate-500"}>
-            อนุมัติเพื่อให้นักศึกษาเข้าสถานะกำลังฝึกงาน ปฏิเสธเพื่อส่งกลับไปแก้ไข หรือทำเครื่องหมายว่าเสร็จสิ้นเมื่อฝึกงานจบแล้ว
-          </p>
-        </div>
+        <p className={isHeaderLayout ? "text-sm font-medium text-white/88" : "text-sm font-medium text-slate-700"}>การดำเนินการของผู้ดูแล</p>
 
         <ReviewStatusActionButtons
           layout={layout}
           currentStatus={currentStatus}
           onChoose={(status) => {
             setSelectedStatus(status);
+            setRejectionReason("");
             setConfirmOpen(true);
           }}
         />
@@ -119,12 +107,39 @@ export function ApplicationReviewForm({ application, userId, layout = "panel" }:
         description={confirmation.description}
         confirmLabel={confirmation.confirmLabel}
         pending={pending}
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={() => {
-          formRef.current?.requestSubmit();
+        onCancel={() => {
+          setSelectedStatus(application.status);
+          setRejectionReason("");
           setConfirmOpen(false);
         }}
-      />
+        onConfirm={() => {
+          const form = formRef.current;
+
+          if (!form || !form.reportValidity()) {
+            return;
+          }
+
+          form.requestSubmit();
+          setConfirmOpen(false);
+        }}
+      >
+        {requiresRejectionReason ? (
+          <div className="space-y-2 pt-2">
+            <label htmlFor={`rejectionReason-${userId}`} className="text-sm font-medium text-slate-700">
+              เหตุผลในการปฏิเสธ
+            </label>
+            <textarea
+              id={`rejectionReason-${userId}`}
+              rows={4}
+              required
+              value={rejectionReason}
+              onChange={(event) => setRejectionReason(event.target.value)}
+              placeholder="ระบุเหตุผลที่นักศึกษาต้องแก้ไขก่อนส่งกลับเข้าระบบ"
+              className="w-full rounded-[1.35rem] border border-[color:var(--color-shell-border)] bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[color:var(--color-brand-violet-deep)] focus:ring-4 focus:ring-[rgba(142,85,183,0.12)]"
+            />
+          </div>
+        ) : null}
+      </ConfirmActionModal>
     </form>
   );
 }
@@ -146,7 +161,7 @@ function ReviewStatusActionButtons({
   const primaryActionStatus = showsCompleteAction
     ? INTERNSHIP_APPLICATION_STATUSES.Finished
     : INTERNSHIP_APPLICATION_STATUSES.Ongoing;
-  const primaryActionLabel = showsCompleteAction ? "เสร็จสิ้น" : "อนุมัติ";
+  const primaryActionLabel = showsCompleteAction ? "ฝึกงานเสร็จสิ้น" : "อนุมัติ";
   const primaryActionDescription = showsCompleteAction
     ? "เสร็จสิ้นการฝึกงาน"
     : "เปลี่ยนสถานะเป็นกำลังฝึกงาน";

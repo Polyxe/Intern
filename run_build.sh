@@ -1,6 +1,6 @@
-docker compose down
-docker compose up -d
+#!/usr/bin/env sh
+
+set -eu
 
 npm run build
-
 npm start

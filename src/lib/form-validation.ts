@@ -3,11 +3,11 @@ export function isValidPhoneNumber(value: string) {
 }
 
 export function isValidStudentId(value: string) {
-  return /^\d{9}$/.test(value.trim());
+  return /^\d+$/.test(value.trim());
 }
 
-export function isValidSingleDigitNumber(value: string) {
-  return /^\d$/.test(value.trim());
+export function isValidYearLevel(value: string) {
+  return /^[1-4]$/.test(value.trim());
 }
 
 export function isFutureDate(date: Date) {

@@ -74,13 +74,14 @@ model InternshipApplication {
   companySupervisorName        String
   companySupervisorRole        String
   companySupervisorEmail       String
-  companySupervisorPhoneNumber String
+  companySupervisorPhoneNumber String?
   internshipStartDate          DateTime
   internshipEndDate            DateTime
   emergencyContactName         String
   emergencyContactRelationship String
   emergencyContactPhoneNumber  String
   notes                        String?
+  rejectionReason              String?
   status                       InternshipApplicationStatus          @default(Pending) @map("approvalStatus")
   approvedAt                   DateTime?
   finishedAt                   DateTime?

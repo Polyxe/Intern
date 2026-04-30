@@ -37,11 +37,8 @@ export default async function StudentTermsPage() {
             <span className="section-kicker bg-white/14 text-white ring-white/20">
               ขั้นตอนแรกก่อนเริ่มใช้งาน
             </span>
-            <div className="space-y-4">
+            <div>
               <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">ยอมรับข้อตกลงการใช้งานสำหรับนักศึกษา</h1>
-              <p className="max-w-3xl text-base leading-8 text-white/78">
-                การเข้าสู่ระบบครั้งแรกของนักศึกษาต้องยืนยันข้อตกลงก่อน จึงจะสามารถเปิดโปรไฟล์ กรอกแบบฟอร์มฝึกงาน และอัปโหลดเอกสารประกอบได้
-              </p>
             </div>
           </div>
         </section>
@@ -50,9 +47,6 @@ export default async function StudentTermsPage() {
           <div className="space-y-5">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-slate-950">ข้อตกลงโดยสรุป</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                โปรดอ่านเงื่อนไขต่อไปนี้อย่างย่อก่อนยืนยันการใช้งานระบบ
-              </p>
             </div>
 
             <div className="space-y-3">

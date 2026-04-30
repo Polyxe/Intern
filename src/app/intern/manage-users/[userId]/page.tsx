@@ -23,7 +23,9 @@ import {
   canManagerEditUser,
   canManagerEditManagedAccount,
   canManagerViewUser,
+  getAccountPagePath,
   getDisplayName,
+  requiresManagerProfileCompletion,
   roleLabels,
 } from "@/lib/user-management";
 
@@ -48,6 +50,10 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
 
   if (!canAccessUserManagement(currentUser.role)) {
     redirect("/intern/profile");
+  }
+
+  if (requiresManagerProfileCompletion(currentUser)) {
+    redirect(getAccountPagePath(currentUser.role, currentUser.id));
   }
 
   const { userId } = await params;
@@ -98,8 +104,9 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
           </div>
         ) : null}
 
+        {/* ── Hero ── */}
         <section className="page-hero p-8 sm:p-10">
-          <div className="relative flex flex-col gap-6">
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.78fr)] lg:items-center">
             <div className="space-y-4">
               <span className="section-kicker bg-white/14 text-white ring-white/20">
                 <FileText className="size-3.5" />
@@ -111,81 +118,75 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
                 </h1>
               </div>
 
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="h-11 rounded-full border border-white/20 bg-white/12 px-5 text-sm font-semibold text-white shadow-none backdrop-blur hover:bg-white/18"
+                >
+                  <Link href={backToListHref}>
+                    <ArrowLeft className="size-4" />
+                    กลับไปหน้ารายการ
+                  </Link>
+                </Button>
+
+                {canEditAccount ? (
+                  <Button
+                    asChild
+                    className="h-11 rounded-full bg-gradient-accent px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(142,85,183,0.28)] hover:brightness-105"
+                  >
+                    <Link href={editHref}>
+                      <PencilLine className="size-4" />
+                      แก้ไขบัญชี
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-[1.8rem] border border-white/16 bg-white/10 p-5 backdrop-blur xl:flex-row xl:items-start xl:justify-between">
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/92">
-                    {roleLabels[managedUser.role]}
-                  </div>
-                  <div
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">บทบาท</p>
+                <div className="mt-2 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/92">
+                  {roleLabels[managedUser.role]}
+                </div>
+              </div>
+
+              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">สถานะฝึกงาน</p>
+                <div className="mt-2">
+                  <span
                     className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm ${
                       applicationStatusMeta?.headerBadgeClassName ?? "border-white/30 bg-white text-slate-700"
                     }`}
                   >
                     {applicationStatusMeta?.label ?? "ยังไม่มีแบบฟอร์ม"}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    asChild
-                    variant="secondary"
-                    className="h-11 rounded-full border border-white/20 bg-white/12 px-5 text-sm font-semibold text-white shadow-none backdrop-blur hover:bg-white/18"
-                  >
-                    <Link href={backToListHref}>
-                      <ArrowLeft className="size-4" />
-                      กลับไปหน้ารายการ
-                    </Link>
-                  </Button>
-
-                  {canEditAccount ? (
-                    <Button
-                      asChild
-                      className="h-11 rounded-full bg-[linear-gradient(135deg,_#a464d4,_#8e55b7)] px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(142,85,183,0.28)] hover:brightness-105"
-                    >
-                      <Link href={editHref}>
-                        <PencilLine className="size-4" />
-                        แก้ไขบัญชี
-                      </Link>
-                    </Button>
-                  ) : (
-                    <div className="rounded-2xl border border-white/16 bg-white/10 px-4 py-3 text-sm leading-6 text-white/78 backdrop-blur">
-                      บัญชีประเภทนี้ยังไม่เปิดให้แก้ไขจากแดชบอร์ดของคุณ
-                    </div>
-                  )}
+                  </span>
                 </div>
               </div>
 
-              <div className="w-full xl:max-w-[34rem]">
-                {canReviewApplication && managedUser.application ? (
+              {canReviewApplication && managedUser.application ? (
+                <div className="sm:col-span-2 lg:col-span-1">
                   <ApplicationReviewForm application={managedUser.application} userId={managedUser.id} layout="header" />
-                ) : (
-                  <div className="rounded-[1.35rem] border border-white/18 bg-white/8 p-4 text-sm leading-7 text-white/78 backdrop-blur">
-                    {managedUser.application
-                      ? "บัญชีนี้เปิดให้ดูข้อมูลได้ แต่บทบาทของคุณยังไม่สามารถเปลี่ยนสถานะฝึกงานได้"
-                      : "นักศึกษายังไม่มีแบบฟอร์มฝึกงานในระบบ จึงยังไม่แสดงปุ่มอนุมัติหรือปฏิเสธ"}
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
 
+        {/* ── Account snapshot ── */}
         <section className="space-y-6">
-          <div className="card-surface p-8 sm:p-10">
-            <div className="flex flex-col gap-4 border-b border-[color:var(--color-shell-border)] pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="card-surface p-7 sm:p-8">
+            <div className="flex flex-col gap-3.5 border-b border-[color:var(--color-shell-border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="space-y-3">
                 <span className="section-kicker bg-gradient-brand-soft ring-0">
                   <ShieldCheck className="size-3.5" />
                   Account Snapshot
                 </span>
                 <div>
-                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">สรุปข้อมูลบัญชี</h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-                    ดูข้อมูลแบบอ่านอย่างเดียวแยกจากหน้าแก้ไข เพื่อให้ตรวจสอบข้อมูลพื้นฐานก่อนลงมือแก้ไขหรือเปลี่ยนสถานะได้ชัดเจนขึ้น
-                  </p>
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                    {managedUser.role === "Student" ? "ข้อมูลโปรไฟล์นักศึกษา" : "สรุปข้อมูลบัญชี"}
+                  </h2>
                 </div>
               </div>
               <div className="inline-flex w-fit items-center rounded-full bg-[color:var(--color-surface-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)]">
@@ -193,25 +194,21 @@ export default async function ManageUserDetailPage({ params, searchParams }: Man
               </div>
             </div>
 
-            <div className="mt-6">
-              <AccountProfileOverview
-                heading={`บัญชีของ ${getDisplayName(managedUser)}`}
-                description="ข้อมูลส่วนนี้แสดงรายละเอียดบัญชีพื้นฐานที่ถูกสร้างไว้ตั้งแต่เริ่มต้น"
-                user={managedUser}
-              />
+            <div className="mt-5">
+              {managedUser.role === "Student" ? (
+                <StudentProfileOverview
+                  heading={`โปรไฟล์ของ ${getDisplayName(managedUser)}`}
+                  user={managedUser}
+                  application={managedUser.application}
+                />
+              ) : (
+                <AccountProfileOverview
+                  heading={`บัญชีของ ${getDisplayName(managedUser)}`}
+                  user={managedUser}
+                />
+              )}
             </div>
           </div>
-
-          {managedUser.role === "Student" ? (
-            <div className="card-surface p-8 sm:p-10">
-              <StudentProfileOverview
-                heading="ข้อมูลโปรไฟล์นักศึกษา"
-                description="ผู้ดูแลสามารถดูข้อมูลส่วนตัว ข้อมูลฝึกงาน และไฟล์แนบทั้งหมดของนักศึกษาได้จากมุมมองเดียว"
-                user={managedUser}
-                application={managedUser.application}
-              />
-            </div>
-          ) : null}
         </section>
       </div>
     </main>

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, FilePenLine, Layers3, ShieldCheck } from "lucide-react";
+import { ArrowLeft, FilePenLine, Mail, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
 import { internshipApplicationSelect } from "@/lib/internship-application";
+import { normalizeInternshipApplicationWizardStep } from "@/lib/internship-application-form";
+import { getManagedStudentEditDraft } from "@/lib/managed-student-edit-draft";
 import {
   appendReturnTo,
   getCanonicalManageUsersHref,
@@ -14,16 +16,15 @@ import { prisma } from "@/lib/prisma";
 import {
   USER_ROLES,
   canAccessUserManagement,
-  canManagerDeleteManagedAccount,
+  getAccountPagePath,
   canManagerEditManagedAccount,
   canManagerEditUser,
   canManagerViewUser,
   getDisplayName,
-  roleLabels,
+  requiresManagerProfileCompletion,
 } from "@/lib/user-management";
 
 import { AccountDetailsForm } from "../../account-details-form";
-import { DeleteManagedAccountForm } from "../../delete-managed-account-form";
 import { StudentDetailsForm } from "../../student-details-form";
 
 type ManageUserEditPageProps = {
@@ -31,9 +32,16 @@ type ManageUserEditPageProps = {
     userId: string;
   }>;
   searchParams?: Promise<{
+    step?: string;
     returnTo?: string;
   }>;
 };
+
+const studentEditStepLabels = {
+  1: "ข้อมูลส่วนตัว",
+  2: "ข้อมูลการศึกษา",
+  3: "รายละเอียดการฝึกงาน",
+} as const;
 
 export default async function ManageUserEditPage({ params, searchParams }: ManageUserEditPageProps) {
   const currentUser = await getCurrentUser();
@@ -71,16 +79,37 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
   });
   const isSelf = managedUser?.id === currentUser.id;
 
+  if (requiresManagerProfileCompletion(currentUser) && isSelf === false) {
+    redirect(getAccountPagePath(currentUser.role, currentUser.id));
+  }
+
   if (!managedUser || !canManagerViewUser(currentUser.role, managedUser.role, { isSelf })) {
     notFound();
   }
 
   const canEditStudent = canManagerEditUser(currentUser.role, managedUser.role);
   const canEditAccount = canManagerEditManagedAccount(currentUser.role, managedUser.role, { isSelf });
-  const canDeleteAccount = canManagerDeleteManagedAccount(currentUser.role, managedUser.role, { isSelf });
+  const draft = canEditStudent && !managedUser.application
+    ? await getManagedStudentEditDraft(currentUser.id, managedUser.id)
+    : null;
+  const requestedStep = normalizeInternshipApplicationWizardStep(resolvedSearchParams.step);
+  const maxAvailableStep = canEditStudent
+    ? managedUser.application || draft?.completedStep === 2
+      ? 3
+      : 2
+    : 1;
+  const currentStep = canEditStudent
+    ? requestedStep > maxAvailableStep
+      ? maxAvailableStep
+      : requestedStep
+    : 1;
 
   if (!canEditAccount) {
     redirect(appendReturnTo(`/intern/manage-users/${userId}`, returnTo));
+  }
+
+  if (canEditStudent && currentStep !== requestedStep) {
+    redirect(appendReturnTo(`/intern/manage-users/${managedUser.id}/edit?step=${String(currentStep)}`, returnTo));
   }
 
   const detailHref = appendReturnTo(`/intern/manage-users/${managedUser.id}`, returnTo);
@@ -89,20 +118,18 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
     <main className="page-shell">
       <div className="mx-auto max-w-6xl space-y-8">
         <section className="page-hero p-8 sm:p-10">
-          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.78fr)] lg:items-end">
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] lg:items-end">
             <div className="space-y-4">
               <span className="section-kicker bg-white/14 text-white ring-white/20">
                 <FilePenLine className="size-3.5" />
-                Editing Workspace
+                Managed Account Edit
               </span>
               <div className="space-y-3">
                 <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
                   แก้ไขบัญชี {getDisplayName(managedUser)}
                 </h1>
-                <p className="max-w-2xl text-base leading-8 text-white/78">
-                  {canEditStudent
-                    ? "หน้านี้จัดเลย์เอาต์ให้เหมือน intern form เพื่อให้ผู้ดูแลแก้ไขข้อมูลบัญชีและข้อมูลนักศึกษาได้ในพื้นที่ทำงานเดียว ขณะที่งานอนุมัติจะอยู่ในหน้าดูข้อมูล"
-                    : "หน้านี้ใช้สำหรับแก้ไขข้อมูลบัญชีพื้นฐานเท่านั้น โดยคงโทนและจังหวะการจัดวางแบบเดียวกับ intern form"}
+                <p className="max-w-2xl text-sm leading-7 text-white/78 sm:text-[15px]">
+                  ใช้โครงหน้าแบบเดียวกับฟอร์มฝึกงานเพื่อให้การแก้ไขข้อมูลบัญชีอ่านง่าย บันทึกเร็ว และไล่ตรวจรายละเอียดได้เป็นช่วงชัดเจน
                 </p>
               </div>
 
@@ -132,78 +159,49 @@ export default async function ManageUserEditPage({ params, searchParams }: Manag
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">บทบาทที่แก้ไข</p>
-                <div className="mt-3 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/92">
-                  {roleLabels[managedUser.role]}
+                <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">
+                  <Sparkles className="size-3.5" />
+                  โหมดการแก้ไข
+                </p>
+                <div className="mt-3 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/92">
+                  {canEditStudent ? `ขั้นตอน ${currentStep} / 3` : "Single Session"}
                 </div>
-                <p className="mt-3 text-sm leading-7 text-white/72">
-                  ฟอร์มด้านล่างจะเปิดเฉพาะข้อมูลที่บทบาทของคุณมีสิทธิ์แก้ไขจริงเท่านั้น
+                <p className="mt-3 text-sm leading-6 text-white/76">
+                  {canEditStudent
+                    ? `กำลังแก้ไขช่วง ${studentEditStepLabels[currentStep]} โดยใช้รูปแบบ wizard เดียวกับหน้าฟอร์มนักศึกษาฝึกงาน`
+                    : "แก้ไขข้อมูลบัญชีหลักของผู้ใช้ในหน้ารวมเดียว พร้อมการ์ดและจังหวะการจัดวางแบบเดียวกับหน้าฟอร์มฝึกงาน"}
                 </p>
               </div>
 
               <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">Workflow</p>
-                <p className="mt-3 text-sm leading-7 text-white/78">
-                  ปุ่มอนุมัติ ปฏิเสธ และเสร็จสิ้นถูกย้ายกลับไปไว้ที่หน้าดูข้อมูลแล้ว เพื่อให้การตรวจฟอร์มและการอนุมัติอยู่ในบริบทเดียวกัน
+                <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">
+                  <Mail className="size-3.5" />
+                  บัญชีที่กำลังแก้ไข
+                </p>
+                <p className="mt-3 text-base font-semibold text-white/92">{managedUser.email}</p>
+                <p className="mt-2 text-sm leading-6 text-white/72">
+                  บันทึกแต่ละช่วงแล้วระบบจะคงเส้นทางกลับไปยังหน้ารายละเอียดหรือหน้ารายการผู้ใช้ตามบริบทเดิม
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-          <div className="card-surface p-8 sm:p-10">
-            <div className="flex flex-col gap-4 border-b border-[color:var(--color-shell-border)] pb-6">
-              <span className="section-kicker bg-gradient-brand-soft ring-0">
-                <Layers3 className="size-3.5" />
-                Form Workspace
-              </span>
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">ข้อมูลที่แก้ไขได้</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
-                  {canEditStudent
-                    ? "ชุดฟอร์มนี้ครอบคลุมข้อมูลบัญชี ข้อมูลการศึกษา และรายละเอียดการฝึกงานทั้งหมดของนักศึกษา โดยคงโครงสร้างแบบเดียวกับฟอร์มนักศึกษาหน้าหลัก"
-                    : "ชุดฟอร์มนี้แสดงเฉพาะข้อมูลบัญชีพื้นฐาน และตัดส่วนอนุมัติสถานะออกจากหน้าแก้ไขเพื่อให้โฟกัสกับงานบันทึกข้อมูล"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              {canEditStudent ? (
-                <StudentDetailsForm user={managedUser} canEditEmail />
-              ) : (
-                <AccountDetailsForm
-                  user={managedUser}
-                  canEditEmail={currentUser.role === USER_ROLES.Superadmin || isSelf}
-                  canEditProfileImage={isSelf}
-                />
-              )}
-            </div>
-          </div>
-
-          <aside className="space-y-6">
-            <section className="card-surface p-8 sm:p-10">
-              <div className="space-y-3">
-                <span className="section-kicker bg-gradient-brand-soft ring-0">
-                  <ShieldCheck className="size-3.5" />
-                  Editing Rules
-                </span>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">ขอบเขตการแก้ไข</h2>
-                <p className="text-sm leading-7 text-slate-600">
-                  {canEditStudent
-                    ? "สำหรับนักศึกษา ผู้ดูแลสามารถแก้ไขข้อมูลบัญชีและข้อมูลฝึกงานได้จากหน้านี้ ส่วนงานอนุมัติสถานะให้กลับไปทำต่อที่หน้าดูข้อมูล"
-                    : "สำหรับผู้ดูแลระบบ หน้านี้จะแสดงเฉพาะข้อมูลบัญชีพื้นฐานเท่านั้น และไม่แสดงฟิลด์ข้อมูลนักศึกษา"}
-                </p>
-              </div>
-
-              <div className="mt-6 rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[color:var(--color-surface-soft)] p-5 text-sm leading-7 text-slate-600">
-                เมื่อบันทึกข้อมูลแล้ว สามารถกลับไปที่หน้าดูข้อมูลเพื่อยืนยันผลลัพธ์และดำเนินการอนุมัติสถานะฝึกงานต่อได้ทันที
-              </div>
-            </section>
-
-            {canDeleteAccount ? <DeleteManagedAccountForm userId={managedUser.id} /> : null}
-          </aside>
-        </section>
+        {canEditStudent ? (
+          <StudentDetailsForm
+            user={managedUser}
+            canEditEmail={currentUser.role === USER_ROLES.Superadmin}
+            step={currentStep}
+            draftValues={draft?.values}
+            returnTo={returnTo}
+          />
+        ) : (
+          <AccountDetailsForm
+            user={managedUser}
+            canEditEmail={currentUser.role === USER_ROLES.Superadmin}
+            canEditProfileImage={isSelf}
+          />
+        )}
       </div>
     </main>
   );

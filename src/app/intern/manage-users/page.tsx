@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { Eye, Trash2, Users } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -8,6 +8,7 @@ import {
   STUDENT_STATUS_FILTERS,
   getManageUsersEmptyStateMessage,
   getStudentStatusFilterForApplication,
+  matchesStudentStatusFilter,
   studentStatusFilterMeta,
   studentStatusFilterOrder,
   wasEditedAfterApproval,
@@ -24,9 +25,13 @@ import { prisma } from "@/lib/prisma";
 import {
   USER_ROLES,
   canAccessUserManagement,
+  canManagerDeleteManagedAccount,
+  getAccountPagePath,
   getDisplayName,
+  requiresManagerProfileCompletion,
   roleLabels,
 } from "@/lib/user-management";
+import { deleteManagedAccountFromForm } from "./actions";
 
 import { ManageUsersSearchControls } from "./manage-users-search-controls";
 
@@ -107,6 +112,10 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
     redirect("/intern/profile");
   }
 
+  if (requiresManagerProfileCompletion(currentUser)) {
+    redirect(getAccountPagePath(currentUser.role, currentUser.id));
+  }
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const filters = resolveManageUsersFilters(currentUser.role, resolvedSearchParams);
 
@@ -152,21 +161,17 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
   const studentCounts = Object.fromEntries(
     studentStatusFilterOrder.map((statusFilter) => [
       statusFilter,
-      statusFilter === STUDENT_STATUS_FILTERS.All
-        ? allStudentUsers.length
-        : allStudentUsers.filter((user) => getStudentStatusFilterForApplication(user.application) === statusFilter)
-            .length,
+      allStudentUsers.filter((user) => matchesStudentStatusFilter(user.application, statusFilter)).length,
     ]),
   ) as Record<(typeof studentStatusFilterOrder)[number], number>;
-  const reviewFlagCount = allStudentUsers.filter((user) => wasEditedAfterApproval(user.application)).length;
+  const visibleStudentStatusFilters = studentStatusFilterOrder.filter(
+    (statusFilter) =>
+      statusFilter !== STUDENT_STATUS_FILTERS.NeedsFollowUp || studentCounts[STUDENT_STATUS_FILTERS.NeedsFollowUp] > 0,
+  );
   const filteredUsers =
     filters.role === MANAGE_USER_ROLE_FILTERS.Admin
       ? allManagerUsers
-      : filters.studentStatus === STUDENT_STATUS_FILTERS.All
-        ? allStudentUsers
-        : allStudentUsers.filter(
-            (user) => getStudentStatusFilterForApplication(user.application) === filters.studentStatus,
-          );
+      : allStudentUsers.filter((user) => matchesStudentStatusFilter(user.application, filters.studentStatus));
   const queryTokens = getManageUsersSearchTokens(filters.query);
   const searchedUsers = queryTokens.length
     ? filteredUsers.filter((user) => matchesManageUsersSearch(user, filters.role, filters.selectedFields, queryTokens))
@@ -217,62 +222,84 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
   return (
     <main className="page-shell">
       <div className="page-grid">
+        {/* ── Hero ── */}
         <section className="page-hero px-8 py-8 sm:px-10 sm:py-10">
-          <div className="relative">
-            <div className="space-y-5">
-
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.78fr)] lg:items-end">
+            <div className="space-y-4">
+              <span className="section-kicker bg-white/14 text-white ring-white/20">
+                <Users className="size-3.5" />
+                User Management
+              </span>
               <div className="space-y-3">
-                <h1 className="max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                   พื้นที่จัดการบัญชีสำหรับทีมดูแลระบบ
                 </h1>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">นักศึกษา</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{allStudentUsers.length}</p>
+                <p className="mt-1 text-xs text-white/58">บัญชีทั้งหมด</p>
+              </div>
+              <div className="rounded-[1.6rem] border border-white/16 bg-white/10 p-4 backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/68">ผู้ดูแลระบบ</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{allManagerUsers.length}</p>
+                <p className="mt-1 text-xs text-white/58">บัญชีทั้งหมด</p>
               </div>
             </div>
           </div>
         </section>
 
+        {/* ── Main card ── */}
         <section className="card-surface p-8 sm:p-9">
-          <div className="flex flex-col gap-6 border-b border-[color:var(--color-shell-border)] pb-6">
+          {/* Card header */}
+          <div className="flex flex-col gap-4 border-b border-[color:var(--color-shell-border)] pb-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(142,85,183,0.1)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--color-brand-violet-deep)]">
-                  Active Accounts
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">บริหารบัญชีผู้ใช้</h2>
-                </div>
+                <span className="section-kicker bg-gradient-brand-soft ring-0">Active Accounts</span>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">บริหารบัญชีผู้ใช้</h2>
               </div>
+              {filters.query ? (
+                <div className="inline-flex items-center gap-2 self-start rounded-full bg-[color:var(--color-surface-soft)] px-4 py-2 text-sm font-medium text-[color:var(--color-brand-violet-deep)]">
+                  พบ {sortedUsers.length} รายการจาก {filters.selectedFields.length} ตัวกรองที่เลือก
+                </div>
+              ) : null}
             </div>
 
-            {currentUser.role === USER_ROLES.Superadmin ? (
-              <div className="flex flex-wrap gap-3">
-                <RoleFilterLink
-                  href={getCanonicalManageUsersHref(currentUser.role, {
-                    role: MANAGE_USER_ROLE_FILTERS.Student,
-                    studentStatus: filters.studentStatus,
-                    query: filters.query,
-                    fields: filters.selectedFields,
-                  })}
-                  label="นักศึกษา"
-                  active={filters.role === MANAGE_USER_ROLE_FILTERS.Student}
-                />
-                <RoleFilterLink
-                  href={getCanonicalManageUsersHref(currentUser.role, {
-                    role: MANAGE_USER_ROLE_FILTERS.Admin,
-                    studentStatus: filters.studentStatus,
-                    query: filters.query,
-                    fields: filters.selectedFields,
-                  })}
-                  label="ผู้ดูแลระบบ"
-                  active={filters.role === MANAGE_USER_ROLE_FILTERS.Admin}
-                />
-              </div>
-            ) : null}
+            {/* Unified filter row */}
+            <div className="flex flex-col gap-3">
+              {currentUser.role === USER_ROLES.Superadmin ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <FilterPill
+                    href={getCanonicalManageUsersHref(currentUser.role, {
+                      role: MANAGE_USER_ROLE_FILTERS.Student,
+                      studentStatus: filters.studentStatus,
+                      query: filters.query,
+                      fields: filters.selectedFields,
+                    })}
+                    label={`นักศึกษา ${allStudentUsers.length}`}
+                    active={filters.role === MANAGE_USER_ROLE_FILTERS.Student}
+                  />
+                  <FilterPill
+                    href={getCanonicalManageUsersHref(currentUser.role, {
+                      role: MANAGE_USER_ROLE_FILTERS.Admin,
+                      studentStatus: filters.studentStatus,
+                      query: filters.query,
+                      fields: filters.selectedFields,
+                    })}
+                    label={`ผู้ดูแลระบบ ${allManagerUsers.length}`}
+                    active={filters.role === MANAGE_USER_ROLE_FILTERS.Admin}
+                  />
+                </div>
+              ) : null}
 
-            {filters.role === MANAGE_USER_ROLE_FILTERS.Student ? (
-              <div className="space-y-4">
-                <div className="grid gap-3 lg:grid-cols-6">
-                  {studentStatusFilterOrder.map((statusFilter) => (
-                    <Link
+              {filters.role === MANAGE_USER_ROLE_FILTERS.Student
+                ? (
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {visibleStudentStatusFilters.map((statusFilter) => (
+                    <FilterPill
                       key={statusFilter}
                       href={getCanonicalManageUsersHref(currentUser.role, {
                         role: MANAGE_USER_ROLE_FILTERS.Student,
@@ -280,70 +307,42 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                         query: filters.query,
                         fields: filters.selectedFields,
                       })}
-                      scroll={false}
-                      aria-current={filters.studentStatus === statusFilter ? "page" : undefined}
-                      className={`rounded-[1.45rem] border px-4 py-4 text-left shadow-sm transition ${
-                        filters.studentStatus === statusFilter
-                          ? "border-[color:var(--color-brand-violet-deep)] bg-[color:var(--color-brand-violet-deep)] text-white shadow-nav-pill"
-                          : studentStatusFilterMeta[statusFilter].pillClassName
-                      }`}
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">สถานะ</p>
-                      <p className="mt-2 text-sm font-semibold">{studentStatusFilterMeta[statusFilter].label}</p>
-                      <p className="mt-3 text-2xl font-semibold tracking-tight">{studentCounts[statusFilter]}</p>
-                    </Link>
-                  ))}
-                </div>
-
-                <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-800">
-                  ต้องติดตาม {reviewFlagCount} บัญชี
-                </div>
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                ผู้ดูแลระบบทั้งหมด {allManagerUsers.length} บัญชี
-              </div>
-            )}
-
-            <div className="rounded-[1.6rem] border border-[rgba(142,85,183,0.14)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(245,240,249,0.94))] p-5 shadow-[0_12px_28px_rgba(112,90,138,0.08)]">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div className="space-y-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-brand-violet-deep)]">
-                    Search Filters
-                  </p>
-                  <h3 className="text-lg font-semibold text-slate-950">ค้นหาบัญชีจากข้อมูลที่ต้องการได้ทันที</h3>
-                  <p className="text-sm leading-6 text-slate-500">
-                    เลือกฟิลด์ที่ต้องการค้นหาด้วยการคลิก แล้วพิมพ์คำค้นต่อเนื่องได้โดยไม่หลุดออกจากช่องค้นหา
-                  </p>
-                </div>
-
-                {filters.query ? (
-                  <div className="inline-flex items-center gap-2 self-start rounded-full border border-[rgba(142,85,183,0.18)] bg-white px-4 py-2 text-sm font-medium text-[color:var(--color-brand-violet-deep)] shadow-sm">
-                    พบ {sortedUsers.length} รายการจาก {filters.selectedFields.length} ตัวกรองที่เลือก
+                      label={studentStatusFilterMeta[statusFilter].label}
+                      count={studentCounts[statusFilter]}
+                      active={filters.studentStatus === statusFilter}
+                      activeClassName={studentStatusFilterMeta[statusFilter].badgeClassName}
+                      inactiveClassName={studentStatusFilterMeta[statusFilter].pillClassName}
+                      layout="card"
+                    />
+                    ))}
                   </div>
-                ) : null}
-              </div>
-
-              <ManageUsersSearchControls
-                key={`${filters.role}:${filters.selectedFields.join(",")}`}
-                managerRole={currentUser.role}
-                role={filters.role}
-                studentStatus={filters.studentStatus}
-                query={filters.query}
-                page={currentPage}
-                selectedFields={filters.selectedFields}
-                allFields={allSearchFields}
-                canonicalHref={filters.canonicalHref}
-                clearSearchHref={clearSearchHref}
-                controlClassName={searchControlClassName}
-                sections={searchFieldSections}
-              />
+                )
+                : null}
             </div>
           </div>
 
+          {/* Search */}
+          <div className="mt-6">
+            <ManageUsersSearchControls
+              key={filters.role}
+              managerRole={currentUser.role}
+              role={filters.role}
+              studentStatus={filters.studentStatus}
+              query={filters.query}
+              page={currentPage}
+              selectedFields={filters.selectedFields}
+              allFields={allSearchFields}
+              canonicalHref={filters.canonicalHref}
+              clearSearchHref={clearSearchHref}
+              controlClassName={searchControlClassName}
+              sections={searchFieldSections}
+            />
+          </div>
+
+          {/* Results */}
           {sortedUsers.length ? (
             <div className="mt-6 space-y-4">
-              <div className="flex flex-col gap-3 rounded-[1.5rem] border border-[rgba(142,85,183,0.12)] bg-[rgba(255,255,255,0.82)] px-5 py-4 shadow-[0_10px_24px_rgba(112,90,138,0.06)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="card-surface flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm font-medium text-slate-600">
                   แสดง {pageStartIndex + 1}-{Math.min(pageStartIndex + MANAGE_USERS_RESULTS_PER_PAGE, sortedUsers.length)} จาก {sortedUsers.length} บัญชี
                 </p>
@@ -392,53 +391,105 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
               {paginatedUsers.map((user) => {
                 const statusFilter = getStudentStatusFilterForApplication(user.application);
                 const detailHref = appendReturnTo(`/intern/manage-users/${user.id}`, filters.canonicalHref);
+                const needsReview = wasEditedAfterApproval(user.application);
+                const canDeleteAccount = canManagerDeleteManagedAccount(currentUser.role, user.role, {
+                  isSelf: user.id === currentUser.id,
+                });
                 const previewItems = queryTokens.length
                   ? getManageUsersSearchPreviewItems(user, filters.role, filters.selectedFields, queryTokens)
                   : [];
 
                 return (
-                  <Link
+                  <div
                     key={user.id}
-                    href={detailHref}
-                    className="group block rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,244,251,0.92))] p-5 shadow-[0_10px_30px_rgba(112,90,138,0.08)] transition hover:-translate-y-0.5 hover:border-[rgba(142,85,183,0.46)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,236,250,0.98))] hover:shadow-[0_20px_38px_rgba(112,90,138,0.14)]"
+                    className="group block rounded-[1.75rem] border border-[color:var(--color-shell-border)] bg-white/95 p-5 shadow-soft-brand transition hover:-translate-y-0.5 hover:border-[rgba(142,85,183,0.46)] hover:shadow-elegant"
                   >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                          {filters.role === MANAGE_USER_ROLE_FILTERS.Admin ? (
-                            <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700 shadow-sm">
-                              {roleLabels[user.role]}
-                            </span>
-                          ) : (
-                            <span
-                              className={`rounded-full border px-3 py-1 font-semibold shadow-sm transition-colors ${studentStatusFilterMeta[statusFilter].badgeClassName}`}
-                            >
-                              {studentStatusFilterMeta[statusFilter].label}
-                            </span>
-                          )}
-                          {wasEditedAfterApproval(user.application) ? (
-                            <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 font-semibold text-orange-900 shadow-sm transition-colors">
+                    <div className="flex items-center gap-4">
+                      {/* Left: status badge */}
+                      <div className="hidden shrink-0 sm:block">
+                        {filters.role === MANAGE_USER_ROLE_FILTERS.Admin ? (
+                          <span className="rounded-full bg-[color:var(--color-surface-soft)] px-3 py-1 text-xs font-medium text-slate-700">
+                            {roleLabels[user.role]}
+                          </span>
+                        ) : (
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${studentStatusFilterMeta[statusFilter].badgeClassName}`}
+                          >
+                            {studentStatusFilterMeta[statusFilter].label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Center: user info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-base font-semibold text-slate-950">
+                            {getDisplayName(user)}
+                          </h3>
+                          {needsReview ? (
+                            <span className="hidden shrink-0 sm:inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-900">
                               มีการแก้ไขหลังอนุมัติ
                             </span>
                           ) : null}
                         </div>
-
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-950 transition">
-                            {getDisplayName(user)}
-                          </h3>
-                          <p className="mt-1 text-sm text-slate-600">{user.email}</p>
+                        <p className="mt-0.5 truncate text-sm text-slate-500">{user.email}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                          {user.institution ? <span>{user.institution}</span> : null}
+                          {user.application?.internshipPosition ? (
+                            <span>{user.application.internshipPosition}</span>
+                          ) : null}
+                          <span>{user.createdAt.toLocaleString("th-TH", { dateStyle: "medium" })}</span>
                         </div>
                       </div>
 
-                      <div className="inline-flex items-center gap-2 self-start rounded-full bg-white px-3 py-1.5 text-sm font-medium text-slate-500 shadow-sm">
-                        เปิดรายละเอียด
-                        <ArrowRight className="size-4 transition group-hover:translate-x-0.5" />
+                      <div className="shrink-0 self-center">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <Link
+                            href={detailHref}
+                            className="inline-flex h-10 items-center gap-2 rounded-full border border-[color:var(--color-shell-border)] bg-white px-4 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] transition hover:border-[rgba(142,85,183,0.46)] hover:bg-[color:var(--color-surface-soft)]"
+                          >
+                            <Eye className="size-4" />
+                            ดูข้อมูล
+                          </Link>
+                          {canDeleteAccount ? (
+                            <form action={deleteManagedAccountFromForm}>
+                              <input type="hidden" name="userId" value={user.id} />
+                              <input type="hidden" name="returnTo" value={filters.canonicalHref} />
+                              <button
+                                type="submit"
+                                className="inline-flex h-10 items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                              >
+                                <Trash2 className="size-4" />
+                                ลบบัญชี
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
 
+                    {/* Mobile status badge */}
+                    <div className="mt-3 flex flex-wrap gap-2 sm:hidden">
+                      {filters.role === MANAGE_USER_ROLE_FILTERS.Admin ? (
+                        <span className="rounded-full bg-[color:var(--color-surface-soft)] px-3 py-1 text-xs font-medium text-slate-700">
+                          {roleLabels[user.role]}
+                        </span>
+                      ) : (
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${studentStatusFilterMeta[statusFilter].badgeClassName}`}
+                        >
+                          {studentStatusFilterMeta[statusFilter].label}
+                        </span>
+                      )}
+                      {needsReview ? (
+                        <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-900">
+                          มีการแก้ไขหลังอนุมัติ
+                        </span>
+                      ) : null}
+                    </div>
+
                     {previewItems.length ? (
-                      <div className="mt-4 rounded-[1.35rem] border border-[rgba(142,85,183,0.12)] bg-white/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                      <div className="mt-4 rounded-[1.35rem] border border-[color:var(--color-shell-border)] bg-white/80 p-4">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-brand-violet-deep)]">
                           ตัวอย่างข้อมูลที่ตรงกับคำค้น
                         </p>
@@ -446,7 +497,7 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                           {previewItems.map((item) => (
                             <div
                               key={`${user.id}-${item.label}`}
-                              className="rounded-2xl border border-[rgba(142,85,183,0.12)] bg-[rgba(248,244,251,0.9)] px-3 py-3"
+                              className="rounded-2xl border border-[color:var(--color-shell-border)] bg-[color:var(--color-surface-soft)] px-3 py-3"
                             >
                               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                                 {item.label}
@@ -459,18 +510,14 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
                         </div>
                       </div>
                     ) : null}
-
-                    <p className="mt-4 text-sm text-slate-500">
-                      สร้างเมื่อ {user.createdAt.toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
-                    </p>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
           ) : (
             <div className="mt-6 rounded-[1.75rem] border border-dashed border-[color:var(--color-shell-border)] bg-white/70 px-6 py-10 text-center">
               <p className="text-lg font-semibold text-slate-900">
-                {filters.query ? `ไม่พบผลลัพธ์สำหรับ \"${filters.query}\"` : getManageUsersEmptyStateMessage(filters)}
+                {filters.query ? `ไม่พบผลลัพธ์สำหรับ "${filters.query}"` : getManageUsersEmptyStateMessage(filters)}
               </p>
               <p className="mt-2 text-sm leading-7 text-slate-500">
                 {filters.query
@@ -485,22 +532,55 @@ export default async function ManageUsersDashboardPage({ searchParams }: ManageU
   );
 }
 
-function RoleFilterLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+/* ── Shared filter pill ── */
+
+function FilterPill({
+  href,
+  label,
+  active,
+  activeClassName,
+  inactiveClassName,
+  count,
+  layout = "pill",
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  activeClassName?: string;
+  inactiveClassName?: string;
+  count?: number;
+  layout?: "pill" | "card";
+}) {
+  const isCard = layout === "card";
+
   return (
     <Link
       href={href}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+      className={`inline-flex border font-semibold transition ${
+        isCard
+          ? "min-h-28 flex-col items-start justify-between rounded-[1.45rem] px-4 py-3.5 text-left shadow-sm hover:-translate-y-0.5"
+          : "items-center rounded-full px-4 py-2 text-sm"
+      } ${
         active
-          ? "border-[color:var(--color-brand-violet-deep)] bg-[color:var(--color-brand-violet-deep)] text-white shadow-nav-pill"
-          : "border-[color:var(--color-shell-border)] bg-white text-[color:var(--color-brand-violet-deep)] hover:bg-[color:var(--color-surface-soft)]"
+          ? `${activeClassName ?? "border-[color:var(--color-brand-violet-deep)] bg-[color:var(--color-brand-violet-deep)] text-white shadow-nav-pill"} ${isCard ? "shadow-soft-brand ring-1 ring-black/5" : ""}`
+          : `${inactiveClassName ?? "border-[color:var(--color-shell-border)] bg-white text-[color:var(--color-brand-violet-deep)] hover:bg-[color:var(--color-surface-soft)]"} ${isCard ? "hover:shadow-soft-brand" : ""}`
       }`}
     >
-      {label}
+      {isCard ? (
+        <>
+          <span className="text-sm font-semibold leading-5">{label}</span>
+          <span className="mt-3 text-2xl font-semibold tracking-tight">{count ?? 0}</span>
+        </>
+      ) : (
+        label
+      )}
     </Link>
   );
 }
+
+/* ── Search helpers ── */
 
 function matchesManageUsersSearch(
   user: ManageUsersSearchableUser,

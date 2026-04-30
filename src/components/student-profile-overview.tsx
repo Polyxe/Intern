@@ -1,15 +1,22 @@
 import type { ReactNode } from "react";
 import {
+  BookOpen,
+  Building2,
   Briefcase,
   CalendarDays,
   Clock3,
   Download,
   FileText,
   GraduationCap,
+  IdCard,
   Mail,
   MapPin,
   Phone,
+  School,
+  ShieldCheck,
   User,
+  Users,
+  VenusAndMars,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,13 +27,13 @@ import {
   type InternshipApplicationRecord,
   wasEditedAfterApproval,
 } from "@/lib/internship-application";
-import { normalizePublicUploadPath } from "@/lib/public-paths";
+import { getInternshipAttachmentDownloadPath } from "@/lib/public-paths";
 import { getSexLabel } from "@/lib/sex";
 import { roleLabels, type UserRole } from "@/lib/user-management";
 
 type StudentProfileOverviewProps = {
   heading: string;
-  description: string;
+  description?: string;
   user: {
     title: string;
     firstname: string;
@@ -112,7 +119,7 @@ function DetailCard({
   return (
     <section className={`relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 shadow-elegant ${className ?? ""}`}>
       <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
-      <div className="relative flex items-center gap-3 border-b border-[color:var(--color-shell-border)] bg-gradient-brand-soft px-6 py-4">
+      <div className="relative flex items-center gap-2.5 border-b border-[color:var(--color-shell-border)] bg-gradient-brand-soft px-5 py-3.5">
         <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand text-white shadow-glow">
           <Icon className="size-4" />
         </div>
@@ -121,7 +128,7 @@ function DetailCard({
           {description ? <p className="text-sm text-slate-500">{description}</p> : null}
         </div>
       </div>
-      <div className="relative grid gap-4 px-6 py-6">{children}</div>
+      <div className="relative grid gap-3.5 px-5 py-5">{children}</div>
     </section>
   );
 }
@@ -136,7 +143,7 @@ function DetailRow({
   value: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--color-shell-border)] bg-white/80 px-4 py-3">
+    <div className="flex items-start gap-2.5 rounded-2xl border border-[color:var(--color-shell-border)] bg-white/80 px-4 py-2.5">
       {Icon ? (
         <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)]">
           <Icon className="size-4" />
@@ -154,23 +161,31 @@ export function StudentProfileOverview({ heading, description, user, application
   const status = application ? getInternshipStatus(application) : null;
   const statusMeta = status ? internshipStatusMeta[status] : null;
   const showsReapprovalNotice = wasEditedAfterApproval(application);
+  const showsRejectionReason = status === "Rejected" && Boolean(application?.rejectionReason?.trim());
   const progress = computeProgress(application?.internshipStartDate, application?.internshipEndDate);
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       {showsReapprovalNotice ? (
-        <div className="rounded-[1.5rem] border border-orange-200 bg-orange-50/85 p-5 text-sm leading-7 text-orange-900 shadow-sm">
+        <div className="rounded-[1.5rem] border border-orange-200 bg-orange-50/85 p-4 text-sm leading-7 text-orange-900 shadow-sm">
           แบบฟอร์มนี้ถูกแก้ไขหลังจากได้รับการอนุมัติเมื่อ{" "}
           {application?.editedAfterApprovalAt ? formatDateForDisplay(application.editedAfterApprovalAt) : "ล่าสุด"}
           ระบบจึงส่งกลับมาอยู่ในรอบการตรวจสอบใหม่โดยอัตโนมัติ
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant lg:col-span-2">
+      {showsRejectionReason ? (
+        <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/90 p-4 text-sm leading-7 text-rose-900 shadow-sm">
+          <p className="font-semibold">เหตุผลที่ผู้ดูแลปฏิเสธแบบฟอร์ม</p>
+          <p className="mt-2 whitespace-pre-wrap">{application?.rejectionReason}</p>
+        </div>
+      ) : null}
+
+      <div className="grid gap-5 lg:grid-cols-5">
+        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant lg:col-span-2">
           <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-gradient-brand opacity-[0.08] blur-3xl" />
           <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">สถานะฝึกงาน</p>
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-2.5 flex items-center gap-3">
             {statusMeta ? (
               <span className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold ${statusMeta.badgeClassName}`}>
                 {statusMeta.label}
@@ -181,14 +196,13 @@ export function StudentProfileOverview({ heading, description, user, application
               </span>
             )}
           </div>
-          <p className="mt-4 text-sm leading-7 text-slate-600">{statusMeta?.description ?? "ยังไม่มีข้อมูลสถานะการฝึกงานสำหรับโปรไฟล์นี้"}</p>
-          <p className="mt-4 inline-flex items-center gap-2 text-xs text-slate-500">
+          <p className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
             <Clock3 className="size-3.5" />
             อัปเดตล่าสุด {application ? formatDateForDisplay(application.updatedAt) : "-"}
           </p>
         </section>
 
-        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant lg:col-span-3">
+        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant lg:col-span-3">
           <div className="pointer-events-none absolute -bottom-16 -left-10 size-52 rounded-full bg-gradient-accent opacity-[0.12] blur-3xl" />
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -207,11 +221,11 @@ export function StudentProfileOverview({ heading, description, user, application
             </span>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4">
             <div className="relative h-3 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-soft)]">
               <div className="h-full rounded-full bg-gradient-accent shadow-accent-glow" style={{ width: `${progress.percent}%` }} />
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+            <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500">
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays className="size-3.5" />
                 เริ่ม {application?.internshipStartDate ? formatDateForDisplay(application.internshipStartDate) : "-"}
@@ -225,52 +239,51 @@ export function StudentProfileOverview({ heading, description, user, application
         </section>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         <DetailCard icon={User} title={heading} description={description}>
           <DetailRow icon={User} label="ชื่อ - นามสกุล" value={displayValue(`${user.title} ${user.firstname} ${user.lastname}`.trim())} />
-          <DetailRow label="เพศ" value={displayValue(getSexLabel(user.sex))} />
+          <DetailRow icon={VenusAndMars} label="เพศ" value={displayValue(getSexLabel(user.sex))} />
           <DetailRow icon={CalendarDays} label="วันเกิด" value={user.birthDate ? formatDateForDisplay(user.birthDate) : "-"} />
           <DetailRow icon={Mail} label="อีเมล" value={user.email} />
-          <DetailRow label="สถาบัน" value={displayValue(user.institution)} />
-          <DetailRow label="สิทธิ์การใช้งาน" value={roleLabels[user.role]} />
+          <DetailRow icon={School} label="สถาบัน" value={displayValue(user.institution)} />
+          <DetailRow icon={ShieldCheck} label="สิทธิ์การใช้งาน" value={roleLabels[user.role]} />
           <DetailRow icon={MapPin} label="ที่อยู่" value={displayValue(user.address)} />
         </DetailCard>
 
         <DetailCard icon={GraduationCap} title="ข้อมูลการศึกษา">
-          <DetailRow label="รหัสนักศึกษา" value={displayValue(application?.studentId)} />
+          <DetailRow icon={IdCard} label="รหัสนักศึกษา" value={displayValue(application?.studentId)} />
           <DetailRow icon={Phone} label="เบอร์โทรศัพท์" value={displayValue(application?.phoneNumber)} />
-          <DetailRow label="คณะ" value={displayValue(application?.faculty)} />
-          <DetailRow label="สาขา / หลักสูตร" value={displayValue(application?.program)} />
-          <DetailRow label="ชั้นปี" value={displayValue(application?.yearLevel)} />
-          <DetailRow label="อาจารย์นิเทศ" value={displayValue([application?.guidingProfessorFirstname, application?.guidingProfessorLastname].filter(Boolean).join(" "))} />
+          <DetailRow icon={Building2} label="คณะ" value={displayValue(application?.faculty)} />
+          <DetailRow icon={BookOpen} label="สาขา / หลักสูตร" value={displayValue(application?.program)} />
+          <DetailRow icon={GraduationCap} label="ชั้นปี" value={displayValue(application?.yearLevel)} />
+          <DetailRow icon={User} label="อาจารย์นิเทศ" value={displayValue([application?.guidingProfessorFirstname, application?.guidingProfessorLastname].filter(Boolean).join(" "))} />
           <DetailRow icon={Phone} label="เบอร์โทรอาจารย์นิเทศ" value={displayValue(application?.guidingProfessorPhoneNumber)} />
         </DetailCard>
 
         <DetailCard icon={Briefcase} title="รายละเอียดการฝึกงาน" className="md:col-span-2">
           <div className="grid gap-4 md:grid-cols-2">
             <DetailRow icon={Briefcase} label="ตำแหน่งฝึกงาน" value={displayValue(application?.internshipPosition)} />
-            <DetailRow label="หน่วยงาน / บริษัท" value={displayValue(application?.companyName)} />
+            <DetailRow icon={Building2} label="หน่วยงาน / บริษัท" value={displayValue(application?.companyName)} />
             <DetailRow icon={MapPin} label="ที่อยู่บริษัท" value={displayValue(application?.companyAddress)} />
-            <DetailRow label="ผู้ดูแลในสถานประกอบการ" value={displayValue(application?.companySupervisorName)} />
-            <DetailRow label="ตำแหน่งผู้ดูแล" value={displayValue(application?.companySupervisorRole)} />
+            <DetailRow icon={User} label="ผู้ดูแลในสถานประกอบการ" value={displayValue(application?.companySupervisorName)} />
+            <DetailRow icon={Briefcase} label="ตำแหน่งผู้ดูแล" value={displayValue(application?.companySupervisorRole)} />
             <DetailRow icon={Mail} label="อีเมลผู้ดูแล" value={displayValue(application?.companySupervisorEmail)} />
             <DetailRow icon={Phone} label="เบอร์โทรผู้ดูแล" value={displayValue(application?.companySupervisorPhoneNumber)} />
-            <DetailRow label="ผู้ติดต่อฉุกเฉิน" value={displayValue(application?.emergencyContactName)} />
-            <DetailRow label="ความสัมพันธ์" value={displayValue(application?.emergencyContactRelationship)} />
+            <DetailRow icon={User} label="ผู้ติดต่อฉุกเฉิน" value={displayValue(application?.emergencyContactName)} />
+            <DetailRow icon={Users} label="ความสัมพันธ์" value={displayValue(application?.emergencyContactRelationship)} />
             <DetailRow icon={Phone} label="เบอร์โทรฉุกเฉิน" value={displayValue(application?.emergencyContactPhoneNumber)} />
             <div className="md:col-span-2">
-              <DetailRow label="หมายเหตุเพิ่มเติม" value={displayValue(application?.notes)} />
+              <DetailRow icon={FileText} label="หมายเหตุเพิ่มเติม" value={displayValue(application?.notes)} />
             </div>
           </div>
         </DetailCard>
       </div>
 
-      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-6 shadow-elegant">
+      <section className="relative overflow-hidden rounded-3xl border border-[color:var(--color-shell-border)] bg-white/86 p-5 shadow-elegant">
         <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-gradient-brand opacity-[0.07] blur-3xl" />
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-slate-950">ไฟล์ประกอบการสมัคร</h2>
-            <p className="mt-1 text-sm text-slate-500">เอกสารที่แนบไว้ในโปรไฟล์นักศึกษาและพร้อมเปิดดูจากพื้นที่สาธารณะของระบบ</p>
           </div>
           <div className="inline-flex w-fit items-center rounded-full bg-gradient-brand-soft px-4 py-2 text-sm font-semibold text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)]">
             ทั้งหมด {application?.attachments.length ?? 0} ไฟล์
@@ -278,11 +291,11 @@ export function StudentProfileOverview({ heading, description, user, application
         </div>
 
         {application?.attachments.length ? (
-          <div className="relative mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="relative mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {application.attachments.map((attachment) => (
               <div
                 key={attachment.id}
-                className="group rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)] hover:bg-[color:var(--color-brand-violet-deep)]"
+                className="group rounded-2xl border border-[color:var(--color-shell-border)] bg-white/90 p-4 transition hover:-translate-y-0.5 hover:border-[color:var(--color-brand-violet-deep)] hover:bg-[color:var(--color-brand-violet-deep)]"
               >
                 <div className="flex items-start gap-3">
                   <div className="grid size-10 place-items-center rounded-xl bg-gradient-brand-soft text-[color:var(--color-brand-violet-deep)] ring-1 ring-[color:var(--color-brand-ring-soft)] group-hover:bg-white/16 group-hover:text-white group-hover:ring-white/20">
@@ -295,17 +308,9 @@ export function StudentProfileOverview({ heading, description, user, application
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3.5 flex flex-wrap gap-2">
                   <a
-                    href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-full border border-[color:var(--color-shell-border)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--color-brand-violet-deep)] transition hover:border-white/30 hover:bg-white/90 group-hover:border-white/20 group-hover:bg-white/12 group-hover:text-white"
-                  >
-                    เปิดไฟล์
-                  </a>
-                  <a
-                    href={normalizePublicUploadPath(attachment.filePath) ?? undefined}
+                    href={getInternshipAttachmentDownloadPath(attachment.filePath, attachment.fileName) ?? undefined}
                     download={attachment.fileName}
                     className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-3 py-2 text-xs font-semibold text-white shadow-accent-glow transition hover:opacity-95"
                   >
@@ -317,7 +322,7 @@ export function StudentProfileOverview({ heading, description, user, application
             ))}
           </div>
         ) : (
-          <p className="relative mt-5 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในโปรไฟล์นี้</p>
+          <p className="relative mt-4 text-sm leading-7 text-slate-500">ยังไม่มีไฟล์แนบในโปรไฟล์นี้</p>
         )}
       </section>
     </section>

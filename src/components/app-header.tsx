@@ -27,16 +27,10 @@ export async function AppHeader() {
   const accountLabel = currentUser?.role === USER_ROLES.Student ? "Student Profile" : "My Account";
   const navLinks = currentUser
     ? currentUser.role === USER_ROLES.Student
-      ? [
-          { href: "/intern/profile", label: "โปรไฟล์" },
-          { href: "/intern/application", label: "ฟอร์มฝึกงาน" },
-        ]
+      ? [{ href: "/intern/application", label: "ฟอร์มฝึกงาน" }]
       : canAccessUserManagement(currentUser.role)
-        ? [
-            { href: "/intern/profile", label: "บัญชีของฉัน" },
-            { href: "/intern/manage-users", label: "จัดการผู้ใช้" },
-          ]
-        : [{ href: accountHref, label: "บัญชีของฉัน" }]
+        ? [{ href: "/intern/manage-users", label: "จัดการผู้ใช้" }]
+        : []
     : [];
 
   const notificationData = currentUser ? await fetchNotifications() : null;

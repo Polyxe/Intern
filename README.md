@@ -117,3 +117,42 @@ To learn more about the stack in this repository:
 For deployment, make sure the production environment also defines `DATABASE_URL` and that migrations are applied before serving traffic.
 
 If you want notification emails in production, also define `APP_BASE_URL`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` with your deployed origin and a verified Resend sender.
+
+## Docker Workflow
+
+The repository now includes an app container that runs the production server with the same `npm run build` flow used outside Docker.
+
+1. Make sure your environment file defines `DATABASE_URL` and the PostgreSQL variables used by `docker-compose.yml`:
+
+```bash
+POSTGRES_USER=superadmin
+POSTGRES_PASSWORD=admin123
+POSTGRES_DB=defaultdb
+PGADMIN_DEFAULT_EMAIL=admin@example.com
+PGADMIN_DEFAULT_PASSWORD=admin123
+```
+
+2. Start the app, database, and file watcher:
+
+```bash
+docker compose up --build -d app
+docker compose watch app
+```
+
+This does three things:
+
+- builds the app image with npm dependencies installed
+- starts PostgreSQL, applies Prisma migrations, and runs the Next.js production server on port 3000
+- keeps the app running in the background while `docker compose watch app` watches source files and restarts the app container so it reruns `npm run build` and `npm run start` after each change
+
+Inside the app container, `DATABASE_URL` is rebuilt from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`, so the app connects to the Docker PostgreSQL service at `db:5432` instead of host `localhost`.
+
+Use `bash run_build.sh` if you want the same Docker workflow through the existing helper script.
+
+Notes:
+
+- code changes under `src`, `public`, `prisma`, `next.config.ts`, and other tracked app files are synced into the container and trigger a rebuild/restart cycle automatically
+- changes to `package.json`, `package-lock.json`, `.env`, or `.env.local` trigger a full image rebuild
+- `exited with code 143` during watch-driven restarts is expected: Docker Compose sends `SIGTERM` to replace the old app container with the rebuilt one
+- uploaded files persist in the named Docker volume `intern_app_uploads`
+- pgAdmin remains available on port 5050

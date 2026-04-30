@@ -1,5 +1,4 @@
 import type { UserRole } from "@/lib/user-management";
-import { USER_ROLES } from "@/lib/user-management";
 import {
   MANAGE_USER_ROLE_FILTERS,
   STUDENT_STATUS_FILTERS,
@@ -9,7 +8,9 @@ import {
 } from "@/lib/internship-application";
 
 const MANAGE_USERS_PATH = "/intern/manage-users";
+const PROFILE_PATH = "/intern/profile";
 const MANAGE_USERS_RETURN_TO_BASE = "https://manage-users.local";
+const SUPERADMIN_ROLE: UserRole = "Superadmin";
 
 export const MANAGE_USERS_SEARCH_FIELDS = {
   Name: "name",
@@ -77,7 +78,7 @@ function normalizeManageUsersPage(value: string | undefined) {
 }
 
 export function getDefaultManageUsersRoleFilter(managerRole: UserRole): ManageUserRoleFilter {
-  return managerRole === USER_ROLES.Superadmin ? MANAGE_USER_ROLE_FILTERS.Student : MANAGE_USER_ROLE_FILTERS.Student;
+  return managerRole === SUPERADMIN_ROLE ? MANAGE_USER_ROLE_FILTERS.Student : MANAGE_USER_ROLE_FILTERS.Student;
 }
 
 export function getManageUsersSearchFieldsForRole(role: ManageUserRoleFilter) {
@@ -132,7 +133,7 @@ export function getCanonicalManageUsersHref(
   const defaultFields = getManageUsersSearchFieldsForRole(role);
   const params = new URLSearchParams();
 
-  if (managerRole === USER_ROLES.Superadmin) {
+  if (managerRole === SUPERADMIN_ROLE) {
     params.set("role", role);
   }
 
@@ -164,7 +165,7 @@ export function resolveManageUsersFilters(managerRole: UserRole, searchParams: R
   const rawPage = getSingleValue(searchParams?.page);
   const rawFields = getSingleValue(searchParams?.fields);
   const role =
-    managerRole === USER_ROLES.Superadmin && isManageUserRoleFilter(rawRole)
+    managerRole === SUPERADMIN_ROLE && isManageUserRoleFilter(rawRole)
       ? rawRole
       : getDefaultManageUsersRoleFilter(managerRole);
   const studentStatus = isStudentStatusFilter(rawStudentStatus)
@@ -227,7 +228,7 @@ export function getValidatedManageUsersReturnTo(returnTo: string | null | undefi
       return null;
     }
 
-    if (!url.pathname.startsWith(MANAGE_USERS_PATH)) {
+    if (url.pathname !== PROFILE_PATH && !url.pathname.startsWith(MANAGE_USERS_PATH)) {
       return null;
     }
 

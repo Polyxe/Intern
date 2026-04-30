@@ -9,55 +9,33 @@ import {
   isApprovedInternshipStatus,
   parseDateInput,
 } from "@/lib/internship-application";
+import {
+  clearStudentApplicationDraft,
+  getStudentApplicationDraft,
+  saveStudentApplicationDraft,
+} from "@/lib/internship-application-draft";
+import {
+  defaultInternshipApplicationFormValues,
+  getNextInternshipApplicationWizardStep,
+  internshipApplicationFormTextFieldNames,
+  mergeInternshipApplicationFormValues,
+  normalizeInternshipApplicationWizardStep,
+  type InternshipApplicationFieldName,
+  type InternshipApplicationFormValues,
+  type InternshipApplicationWizardStep,
+} from "@/lib/internship-application-form";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteStoredFiles, saveUploadedFile } from "@/lib/file-storage";
 import {
   isFutureDate,
   isValidPhoneNumber,
-  isValidSingleDigitNumber,
   isValidStudentId,
+  isValidYearLevel,
 } from "@/lib/form-validation";
 import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { getDisplayName } from "@/lib/user-management";
 import { USER_ROLES } from "@/lib/user-management";
-
-export type InternshipApplicationFormValues = {
-  title: string;
-  firstname: string;
-  lastname: string;
-  sex: string;
-  birthDate: string;
-  address: string;
-  institution: string;
-  studentId: string;
-  phoneNumber: string;
-  faculty: string;
-  program: string;
-  yearLevel: string;
-  internshipPosition: string;
-  companyName: string;
-  companyAddress: string;
-  guidingProfessorFirstname: string;
-  guidingProfessorLastname: string;
-  guidingProfessorPhoneNumber: string;
-  companySupervisorName: string;
-  companySupervisorRole: string;
-  companySupervisorEmail: string;
-  companySupervisorPhoneNumber: string;
-  internshipStartDate: string;
-  internshipEndDate: string;
-  emergencyContactName: string;
-  emergencyContactRelationship: string;
-  emergencyContactPhoneNumber: string;
-  notes: string;
-};
-
-export type InternshipApplicationFieldName =
-  | keyof InternshipApplicationFormValues
-  | "email"
-  | "profilePhoto"
-  | "attachments";
 
 export type InternshipApplicationFieldErrors = Partial<Record<InternshipApplicationFieldName, string>>;
 
@@ -76,7 +54,11 @@ const MAX_ATTACHMENT_COUNT = 5;
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
 const ALLOWED_PROFILE_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
-const REQUIRED_FIELD_MESSAGES: Record<keyof Omit<InternshipApplicationFormValues, "notes">, string> = {
+type RequiredInternshipApplicationFieldName = keyof Omit<
+  InternshipApplicationFormValues,
+  "notes" | "companySupervisorPhoneNumber"
+>;
+const REQUIRED_FIELD_MESSAGES: Record<RequiredInternshipApplicationFieldName, string> = {
   title: "กรุณาระบุคำนำหน้า",
   firstname: "กรุณาระบุชื่อ",
   lastname: "กรุณาระบุนามสกุล",
@@ -98,7 +80,6 @@ const REQUIRED_FIELD_MESSAGES: Record<keyof Omit<InternshipApplicationFormValues
   companySupervisorName: "กรุณาระบุชื่อผู้ดูแลในสถานประกอบการ",
   companySupervisorRole: "กรุณาระบุตำแหน่งผู้ดูแล",
   companySupervisorEmail: "กรุณาระบุอีเมลผู้ดูแล",
-  companySupervisorPhoneNumber: "กรุณาระบุเบอร์โทรผู้ดูแล",
   internshipStartDate: "กรุณาระบุวันที่เริ่มฝึกงาน",
   internshipEndDate: "กรุณาระบุวันที่สิ้นสุดฝึกงาน",
   emergencyContactName: "กรุณาระบุชื่อผู้ติดต่อฉุกเฉิน",
@@ -106,37 +87,61 @@ const REQUIRED_FIELD_MESSAGES: Record<keyof Omit<InternshipApplicationFormValues
   emergencyContactPhoneNumber: "กรุณาระบุเบอร์โทรผู้ติดต่อฉุกเฉิน",
 };
 
+const STEP_ONE_REQUIRED_FIELDS: RequiredInternshipApplicationFieldName[] = [
+  "title",
+  "firstname",
+  "lastname",
+  "sex",
+  "birthDate",
+  "address",
+  "institution",
+];
+
+const STEP_TWO_REQUIRED_FIELDS: RequiredInternshipApplicationFieldName[] = [
+  "studentId",
+  "phoneNumber",
+  "faculty",
+  "program",
+  "yearLevel",
+  "guidingProfessorFirstname",
+  "guidingProfessorLastname",
+  "guidingProfessorPhoneNumber",
+];
+
+const STEP_THREE_REQUIRED_FIELDS: RequiredInternshipApplicationFieldName[] = [
+  "internshipPosition",
+  "companyName",
+  "companyAddress",
+  "companySupervisorName",
+  "companySupervisorRole",
+  "companySupervisorEmail",
+  "internshipStartDate",
+  "internshipEndDate",
+  "emergencyContactName",
+  "emergencyContactRelationship",
+  "emergencyContactPhoneNumber",
+];
+
 function buildFormValues(formData: FormData): InternshipApplicationFormValues {
-  return {
-    title: getTextValue(formData, "title"),
-    firstname: getTextValue(formData, "firstname"),
-    lastname: getTextValue(formData, "lastname"),
-    sex: getTextValue(formData, "sex"),
-    birthDate: getTextValue(formData, "birthDate"),
-    address: getTextValue(formData, "address"),
-    institution: getTextValue(formData, "institution"),
-    studentId: getTextValue(formData, "studentId"),
-    phoneNumber: getTextValue(formData, "phoneNumber"),
-    faculty: getTextValue(formData, "faculty"),
-    program: getTextValue(formData, "program"),
-    yearLevel: getTextValue(formData, "yearLevel"),
-    internshipPosition: getTextValue(formData, "internshipPosition"),
-    companyName: getTextValue(formData, "companyName"),
-    companyAddress: getTextValue(formData, "companyAddress"),
-    guidingProfessorFirstname: getTextValue(formData, "guidingProfessorFirstname"),
-    guidingProfessorLastname: getTextValue(formData, "guidingProfessorLastname"),
-    guidingProfessorPhoneNumber: getTextValue(formData, "guidingProfessorPhoneNumber"),
-    companySupervisorName: getTextValue(formData, "companySupervisorName"),
-    companySupervisorRole: getTextValue(formData, "companySupervisorRole"),
-    companySupervisorEmail: getTextValue(formData, "companySupervisorEmail"),
-    companySupervisorPhoneNumber: getTextValue(formData, "companySupervisorPhoneNumber"),
-    internshipStartDate: getTextValue(formData, "internshipStartDate"),
-    internshipEndDate: getTextValue(formData, "internshipEndDate"),
-    emergencyContactName: getTextValue(formData, "emergencyContactName"),
-    emergencyContactRelationship: getTextValue(formData, "emergencyContactRelationship"),
-    emergencyContactPhoneNumber: getTextValue(formData, "emergencyContactPhoneNumber"),
-    notes: getTextValue(formData, "notes"),
-  };
+  const values = { ...defaultInternshipApplicationFormValues };
+
+  for (const fieldName of internshipApplicationFormTextFieldNames) {
+    values[fieldName] = getTextValue(formData, fieldName);
+  }
+
+  return values;
+}
+
+function getSubmittedFormValues(formData: FormData) {
+  const values: Partial<InternshipApplicationFormValues> = {};
+
+  for (const fieldName of internshipApplicationFormTextFieldNames) {
+    if (formData.has(fieldName)) {
+      values[fieldName] = getTextValue(formData, fieldName);
+    }
+  }
+
+  return values;
 }
 
 function getFileValue(formData: FormData, fieldName: string) {
@@ -198,14 +203,118 @@ function createValidationState(
   });
 }
 
+function getStudentApplicationWizardHref(step: InternshipApplicationWizardStep, options?: { edit?: boolean }) {
+  const params = new URLSearchParams();
+
+  if (options?.edit) {
+    params.set("edit", "1");
+  }
+
+  if (step > 1 || options?.edit) {
+    params.set("step", String(step));
+  }
+
+  return params.size ? `/intern/application?${params.toString()}` : "/intern/application";
+}
+
+function buildCurrentUserFormValues(currentUser: {
+  title: string;
+  firstname: string;
+  lastname: string;
+  sex?: string | null;
+  birthDate?: Date | null;
+  address?: string | null;
+  institution?: string | null;
+}) {
+  return {
+    title: currentUser.title,
+    firstname: currentUser.firstname,
+    lastname: currentUser.lastname,
+    sex: currentUser.sex ?? "",
+    birthDate: currentUser.birthDate ? formatDateForAction(currentUser.birthDate) : "",
+    address: currentUser.address ?? "",
+    institution: currentUser.institution ?? "",
+  } satisfies Partial<InternshipApplicationFormValues>;
+}
+
+function buildExistingApplicationFormValues(existingApplication: {
+  studentId: string;
+  phoneNumber: string;
+  faculty: string;
+  program: string;
+  yearLevel: string;
+  internshipPosition: string;
+  companyName: string;
+  companyAddress: string;
+  guidingProfessorFirstname: string | null;
+  guidingProfessorLastname: string | null;
+  guidingProfessorPhoneNumber: string | null;
+  companySupervisorName: string;
+  companySupervisorRole: string;
+  companySupervisorEmail: string;
+  companySupervisorPhoneNumber: string | null;
+  internshipStartDate: Date;
+  internshipEndDate: Date;
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhoneNumber: string;
+  notes: string | null;
+}) {
+  return {
+    studentId: existingApplication.studentId,
+    phoneNumber: existingApplication.phoneNumber,
+    faculty: existingApplication.faculty,
+    program: existingApplication.program,
+    yearLevel: existingApplication.yearLevel,
+    internshipPosition: existingApplication.internshipPosition,
+    companyName: existingApplication.companyName,
+    companyAddress: existingApplication.companyAddress,
+    guidingProfessorFirstname: existingApplication.guidingProfessorFirstname ?? "",
+    guidingProfessorLastname: existingApplication.guidingProfessorLastname ?? "",
+    guidingProfessorPhoneNumber: existingApplication.guidingProfessorPhoneNumber ?? "",
+    companySupervisorName: existingApplication.companySupervisorName,
+    companySupervisorRole: existingApplication.companySupervisorRole,
+    companySupervisorEmail: existingApplication.companySupervisorEmail,
+    companySupervisorPhoneNumber: existingApplication.companySupervisorPhoneNumber ?? "",
+    internshipStartDate: formatDateForAction(existingApplication.internshipStartDate),
+    internshipEndDate: formatDateForAction(existingApplication.internshipEndDate),
+    emergencyContactName: existingApplication.emergencyContactName,
+    emergencyContactRelationship: existingApplication.emergencyContactRelationship,
+    emergencyContactPhoneNumber: existingApplication.emergencyContactPhoneNumber,
+    notes: existingApplication.notes ?? "",
+  } satisfies Partial<InternshipApplicationFormValues>;
+}
+
+function formatDateForAction(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function validateRequiredFields(
+  fieldErrors: InternshipApplicationFieldErrors,
+  values: InternshipApplicationFormValues,
+  fieldNames: ReadonlyArray<RequiredInternshipApplicationFieldName>,
+) {
+  for (const fieldName of fieldNames) {
+    if (!values[fieldName]) {
+      addFieldError(fieldErrors, fieldName, REQUIRED_FIELD_MESSAGES[fieldName]);
+    }
+  }
+}
+
 function validateInternshipApplication({
   values,
+  steps,
   hasExistingProfilePhoto,
   existingAttachmentCount,
   profilePhoto,
   attachmentFiles,
 }: {
   values: InternshipApplicationFormValues;
+  steps: InternshipApplicationWizardStep[];
   hasExistingProfilePhoto: boolean;
   existingAttachmentCount: number;
   profilePhoto: File | null;
@@ -213,45 +322,49 @@ function validateInternshipApplication({
 }) {
   const fieldErrors: InternshipApplicationFieldErrors = {};
 
-  for (const [fieldName, message] of Object.entries(REQUIRED_FIELD_MESSAGES)) {
-    const typedFieldName = fieldName as keyof typeof REQUIRED_FIELD_MESSAGES;
+  if (steps.includes(1)) {
+    validateRequiredFields(fieldErrors, values, STEP_ONE_REQUIRED_FIELDS);
+  }
 
-    if (!values[typedFieldName]) {
-      addFieldError(fieldErrors, typedFieldName, message);
+  if (steps.includes(2)) {
+    validateRequiredFields(fieldErrors, values, STEP_TWO_REQUIRED_FIELDS);
+
+    if (values.studentId && !isValidStudentId(values.studentId)) {
+      addFieldError(fieldErrors, "studentId", "รหัสนักศึกษาต้องเป็นตัวเลขเท่านั้น");
+    }
+
+    if (values.phoneNumber && !isValidPhoneNumber(values.phoneNumber)) {
+      addFieldError(fieldErrors, "phoneNumber", "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก");
+    }
+
+    if (values.guidingProfessorPhoneNumber && !isValidPhoneNumber(values.guidingProfessorPhoneNumber)) {
+      addFieldError(fieldErrors, "guidingProfessorPhoneNumber", "เบอร์โทรอาจารย์นิเทศต้องเป็นตัวเลข 9-10 หลัก");
+    }
+
+    if (values.yearLevel && !isValidYearLevel(values.yearLevel)) {
+      addFieldError(fieldErrors, "yearLevel", "ชั้นปีต้องอยู่ระหว่าง 1 ถึง 4");
     }
   }
 
-  if (values.companySupervisorEmail && !isValidEmail(values.companySupervisorEmail)) {
-    addFieldError(fieldErrors, "companySupervisorEmail", "อีเมลผู้ดูแลในสถานประกอบการไม่ถูกต้อง");
-  }
+  if (steps.includes(3)) {
+    validateRequiredFields(fieldErrors, values, STEP_THREE_REQUIRED_FIELDS);
 
-  if (values.studentId && !isValidStudentId(values.studentId)) {
-    addFieldError(fieldErrors, "studentId", "รหัสนักศึกษาต้องเป็นตัวเลข 9 หลัก");
-  }
+    if (values.companySupervisorEmail && !isValidEmail(values.companySupervisorEmail)) {
+      addFieldError(fieldErrors, "companySupervisorEmail", "อีเมลผู้ดูแลในสถานประกอบการไม่ถูกต้อง");
+    }
 
-  if (values.phoneNumber && !isValidPhoneNumber(values.phoneNumber)) {
-    addFieldError(fieldErrors, "phoneNumber", "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก");
-  }
+    if (values.companySupervisorPhoneNumber && !isValidPhoneNumber(values.companySupervisorPhoneNumber)) {
+      addFieldError(fieldErrors, "companySupervisorPhoneNumber", "เบอร์โทรผู้ดูแลต้องเป็นตัวเลข 9-10 หลัก");
+    }
 
-  if (values.guidingProfessorPhoneNumber && !isValidPhoneNumber(values.guidingProfessorPhoneNumber)) {
-    addFieldError(fieldErrors, "guidingProfessorPhoneNumber", "เบอร์โทรอาจารย์นิเทศต้องเป็นตัวเลข 9-10 หลัก");
-  }
-
-  if (values.companySupervisorPhoneNumber && !isValidPhoneNumber(values.companySupervisorPhoneNumber)) {
-    addFieldError(fieldErrors, "companySupervisorPhoneNumber", "เบอร์โทรผู้ดูแลต้องเป็นตัวเลข 9-10 หลัก");
-  }
-
-  if (values.emergencyContactPhoneNumber && !isValidPhoneNumber(values.emergencyContactPhoneNumber)) {
-    addFieldError(fieldErrors, "emergencyContactPhoneNumber", "เบอร์โทรผู้ติดต่อฉุกเฉินต้องเป็นตัวเลข 9-10 หลัก");
-  }
-
-  if (values.yearLevel && !isValidSingleDigitNumber(values.yearLevel)) {
-    addFieldError(fieldErrors, "yearLevel", "ชั้นปีต้องเป็นตัวเลข 1 หลัก");
+    if (values.emergencyContactPhoneNumber && !isValidPhoneNumber(values.emergencyContactPhoneNumber)) {
+      addFieldError(fieldErrors, "emergencyContactPhoneNumber", "เบอร์โทรผู้ติดต่อฉุกเฉินต้องเป็นตัวเลข 9-10 หลัก");
+    }
   }
 
   const birthDate = values.birthDate ? parseDateInput(values.birthDate) : null;
 
-  if (values.birthDate) {
+  if (steps.includes(1) && values.birthDate) {
     if (!birthDate) {
       addFieldError(fieldErrors, "birthDate", "กรุณาระบุวันเกิดให้ถูกต้อง");
     } else if (isFutureDate(birthDate)) {
@@ -262,27 +375,27 @@ function validateInternshipApplication({
   const internshipStartDate = values.internshipStartDate ? parseDateInput(values.internshipStartDate) : null;
   const internshipEndDate = values.internshipEndDate ? parseDateInput(values.internshipEndDate) : null;
 
-  if (values.internshipStartDate && !internshipStartDate) {
+  if (steps.includes(3) && values.internshipStartDate && !internshipStartDate) {
     addFieldError(fieldErrors, "internshipStartDate", "กรุณาระบุวันที่เริ่มฝึกงานให้ถูกต้อง");
   }
 
-  if (values.internshipEndDate && !internshipEndDate) {
+  if (steps.includes(3) && values.internshipEndDate && !internshipEndDate) {
     addFieldError(fieldErrors, "internshipEndDate", "กรุณาระบุวันที่สิ้นสุดฝึกงานให้ถูกต้อง");
   }
 
-  if (internshipStartDate && internshipEndDate && internshipEndDate < internshipStartDate) {
+  if (steps.includes(3) && internshipStartDate && internshipEndDate && internshipEndDate < internshipStartDate) {
     addFieldError(fieldErrors, "internshipEndDate", "วันที่สิ้นสุดฝึกงานต้องไม่ก่อนวันที่เริ่มต้น");
   }
 
-  if (!hasExistingProfilePhoto && !profilePhoto) {
+  if (steps.includes(1) && !hasExistingProfilePhoto && !profilePhoto) {
     addFieldError(fieldErrors, "profilePhoto", "กรุณาอัปโหลดรูปโปรไฟล์ก่อนบันทึกแบบฟอร์ม");
   }
 
-  if (existingAttachmentCount + attachmentFiles.length > MAX_ATTACHMENT_COUNT) {
+  if (steps.includes(3) && existingAttachmentCount + attachmentFiles.length > MAX_ATTACHMENT_COUNT) {
     addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบทั้งหมดต้องมีไม่เกิน 5 ไฟล์");
   }
 
-  if (profilePhoto) {
+  if (steps.includes(1) && profilePhoto) {
     if (!ALLOWED_PROFILE_MIME_TYPES.has(profilePhoto.type)) {
       addFieldError(fieldErrors, "profilePhoto", "รูปโปรไฟล์ต้องเป็นไฟล์ PNG หรือ JPG เท่านั้น");
     }
@@ -292,15 +405,17 @@ function validateInternshipApplication({
     }
   }
 
-  for (const attachment of attachmentFiles) {
-    if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(attachment.type)) {
-      addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบต้องเป็น PDF, PNG หรือ JPG เท่านั้น");
-      break;
-    }
+  if (steps.includes(3)) {
+    for (const attachment of attachmentFiles) {
+      if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(attachment.type)) {
+        addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบต้องเป็น PDF, PNG หรือ JPG เท่านั้น");
+        break;
+      }
 
-    if (attachment.size > MAX_FILE_SIZE_BYTES) {
-      addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB");
-      break;
+      if (attachment.size > MAX_FILE_SIZE_BYTES) {
+        addFieldError(fieldErrors, "attachments", "ไฟล์ประกอบแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB");
+        break;
+      }
     }
   }
 
@@ -312,19 +427,50 @@ function validateInternshipApplication({
   };
 }
 
+async function notifyAdminsAboutStudentResubmission(
+  currentUserId: string,
+  values: Pick<InternshipApplicationFormValues, "title" | "firstname" | "lastname">,
+  previousStatus: string,
+) {
+  if (previousStatus === INTERNSHIP_APPLICATION_STATUSES.Pending) {
+    return;
+  }
+
+  const studentName = getDisplayName(values);
+  const isPreviouslyApproved =
+    previousStatus === INTERNSHIP_APPLICATION_STATUSES.Ongoing ||
+    previousStatus === INTERNSHIP_APPLICATION_STATUSES.Finished;
+  const notificationTitle = isPreviouslyApproved
+    ? "นักศึกษาแก้ไขข้อมูลฝึกงานหลังการอนุมัติ"
+    : "นักศึกษาแก้ไขแบบฟอร์มที่ถูกปฏิเสธและส่งกลับใหม่";
+  const notificationMessage = isPreviouslyApproved
+    ? `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงานหลังการอนุมัติ ระบบได้ส่งคำขอกลับเข้าสู่สถานะรอตรวจสอบแล้ว`
+    : `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงานที่ถูกปฏิเสธ และส่งกลับเข้าสู่สถานะรอตรวจสอบแล้ว`;
+
+  await notifyAdmins(notificationTitle, notificationMessage, {
+    email: {
+      subject: notificationTitle,
+      actionPath: `/intern/manage-users/${currentUserId}`,
+      actionLabel: "เปิดหน้ารายละเอียดนักศึกษา",
+    },
+  });
+}
+
 export async function saveInternshipApplication(
   _: InternshipApplicationFormState,
   formData: FormData,
 ): Promise<InternshipApplicationFormState> {
   const currentUser = await getCurrentUser();
-  const values = buildFormValues(formData);
+  const currentStep = normalizeInternshipApplicationWizardStep(formData.get("wizardStep")?.toString());
+  const draft = currentUser ? await getStudentApplicationDraft(currentUser.id) : null;
+  const submittedValues = getSubmittedFormValues(formData);
 
   if (!currentUser || currentUser.role !== USER_ROLES.Student) {
-    return createState(values, { error: "เฉพาะบัญชีนักศึกษาเท่านั้นที่ส่งแบบฟอร์มฝึกงานได้" });
+    return createState(buildFormValues(formData), { error: "เฉพาะบัญชีนักศึกษาเท่านั้นที่ส่งแบบฟอร์มฝึกงานได้" });
   }
 
   if (!currentUser.acceptedTermsAt) {
-    return createState(values, { error: "กรุณายอมรับข้อตกลงการใช้งานก่อนกรอกแบบฟอร์มฝึกงาน" });
+    return createState(buildFormValues(formData), { error: "กรุณายอมรับข้อตกลงการใช้งานก่อนกรอกแบบฟอร์มฝึกงาน" });
   }
 
   const profilePhoto = getFileValue(formData, "profilePhoto");
@@ -341,6 +487,27 @@ export async function saveInternshipApplication(
           approvedAt: true,
           finishedAt: true,
           editedAfterApprovalAt: true,
+          studentId: true,
+          phoneNumber: true,
+          faculty: true,
+          program: true,
+          yearLevel: true,
+          internshipPosition: true,
+          companyName: true,
+          companyAddress: true,
+          guidingProfessorFirstname: true,
+          guidingProfessorLastname: true,
+          guidingProfessorPhoneNumber: true,
+          companySupervisorName: true,
+          companySupervisorRole: true,
+          companySupervisorEmail: true,
+          companySupervisorPhoneNumber: true,
+          internshipStartDate: true,
+          internshipEndDate: true,
+          emergencyContactName: true,
+          emergencyContactRelationship: true,
+          emergencyContactPhoneNumber: true,
+          notes: true,
           attachments: {
             select: {
               id: true,
@@ -353,6 +520,15 @@ export async function saveInternshipApplication(
   });
 
   const existingApplication = existingUser?.application ?? null;
+  const existingApplicationValues = existingApplication
+    ? buildExistingApplicationFormValues(existingApplication)
+    : undefined;
+  const baseValues = mergeInternshipApplicationFormValues(
+    existingApplicationValues,
+    draft?.values,
+    buildCurrentUserFormValues(currentUser),
+  );
+  const values = mergeInternshipApplicationFormValues(baseValues, submittedValues);
 
   if (existingApplication && !canStudentEditApplication(existingApplication)) {
     return createState(values, { error: "ไม่สามารถแก้ไขข้อมูลได้อีก เนื่องจากสถานะฝึกงานเสร็จสิ้นแล้ว" });
@@ -362,6 +538,7 @@ export async function saveInternshipApplication(
 
   const validation = validateInternshipApplication({
     values,
+    steps: currentStep === 3 ? [1, 2, 3] : [currentStep],
     hasExistingProfilePhoto: Boolean(existingUser?.profileImagePath),
     existingAttachmentCount,
     profilePhoto,
@@ -376,8 +553,29 @@ export async function saveInternshipApplication(
   const internshipStartDate = validation.internshipStartDate;
   const internshipEndDate = validation.internshipEndDate;
 
-  if (!birthDate || !internshipStartDate || !internshipEndDate) {
+  if ((currentStep === 1 && !birthDate) || (currentStep === 3 && (!birthDate || !internshipStartDate || !internshipEndDate))) {
     return createState(values, { error: "กรุณาตรวจสอบข้อมูลวันที่ในแบบฟอร์มอีกครั้ง" });
+  }
+
+  const finalBirthDate = birthDate ?? null;
+  const finalInternshipStartDate = internshipStartDate ?? null;
+  const finalInternshipEndDate = internshipEndDate ?? null;
+  const requiredInternshipStartDate = finalInternshipStartDate as Date;
+  const requiredInternshipEndDate = finalInternshipEndDate as Date;
+
+  if (currentStep === 1 || currentStep === 2) {
+    await saveStudentApplicationDraft({
+      userId: currentUser.id,
+      completedStep: currentStep,
+      values,
+    });
+
+    revalidatePath("/intern/application");
+    redirect(
+      getStudentApplicationWizardHref(getNextInternshipApplicationWizardStep(currentStep), {
+        edit: Boolean(existingApplication),
+      }),
+    );
   }
 
   const newlySavedFilePaths: string[] = [];
@@ -415,7 +613,7 @@ export async function saveInternshipApplication(
           firstname: values.firstname,
           lastname: values.lastname,
           sex: values.sex,
-          birthDate,
+          birthDate: finalBirthDate,
           address: values.address,
           institution: values.institution,
           ...(savedProfilePhoto ? { profileImagePath: savedProfilePhoto.filePath } : {}),
@@ -439,13 +637,14 @@ export async function saveInternshipApplication(
           companySupervisorName: values.companySupervisorName,
           companySupervisorRole: values.companySupervisorRole,
           companySupervisorEmail: values.companySupervisorEmail,
-          companySupervisorPhoneNumber: values.companySupervisorPhoneNumber,
-          internshipStartDate,
-          internshipEndDate,
+          companySupervisorPhoneNumber: values.companySupervisorPhoneNumber || null,
+          internshipStartDate: requiredInternshipStartDate,
+          internshipEndDate: requiredInternshipEndDate,
           emergencyContactName: values.emergencyContactName,
           emergencyContactRelationship: values.emergencyContactRelationship,
           emergencyContactPhoneNumber: values.emergencyContactPhoneNumber,
           notes: values.notes || null,
+          rejectionReason: null,
           status:
             existingApplication?.status === INTERNSHIP_APPLICATION_STATUSES.Pending
               ? existingApplication.status
@@ -473,13 +672,14 @@ export async function saveInternshipApplication(
           companySupervisorName: values.companySupervisorName,
           companySupervisorRole: values.companySupervisorRole,
           companySupervisorEmail: values.companySupervisorEmail,
-          companySupervisorPhoneNumber: values.companySupervisorPhoneNumber,
-          internshipStartDate,
-          internshipEndDate,
+          companySupervisorPhoneNumber: values.companySupervisorPhoneNumber || null,
+          internshipStartDate: requiredInternshipStartDate,
+          internshipEndDate: requiredInternshipEndDate,
           emergencyContactName: values.emergencyContactName,
           emergencyContactRelationship: values.emergencyContactRelationship,
           emergencyContactPhoneNumber: values.emergencyContactPhoneNumber,
           notes: values.notes || null,
+          rejectionReason: null,
           status: INTERNSHIP_APPLICATION_STATUSES.Pending,
           approvedAt: null,
           finishedAt: null,
@@ -511,30 +711,7 @@ export async function saveInternshipApplication(
       existingApplication?.status &&
       existingApplication.status !== INTERNSHIP_APPLICATION_STATUSES.Pending
     ) {
-      const studentName = getDisplayName({
-        title: values.title,
-        firstname: values.firstname,
-        lastname: values.lastname,
-      });
-
-      const notificationTitle = isApprovedInternshipStatus(existingApplication.status)
-        ? "นักศึกษาแก้ไขข้อมูลฝึกงานหลังการอนุมัติ"
-        : "นักศึกษาแก้ไขแบบฟอร์มที่ถูกปฏิเสธและส่งกลับใหม่";
-      const notificationMessage = isApprovedInternshipStatus(existingApplication.status)
-        ? `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงานหลังการอนุมัติ ระบบได้ส่งคำขอกลับเข้าสู่สถานะรอตรวจสอบแล้ว`
-        : `${studentName} ได้แก้ไขข้อมูลในแบบฟอร์มฝึกงานที่ถูกปฏิเสธ และส่งกลับเข้าสู่สถานะรอตรวจสอบแล้ว`;
-
-      await notifyAdmins(
-        notificationTitle,
-        notificationMessage,
-        {
-          email: {
-            subject: notificationTitle,
-            actionPath: `/intern/manage-users/${currentUser.id}`,
-            actionLabel: "เปิดหน้ารายละเอียดนักศึกษา",
-          },
-        },
-      );
+      await notifyAdminsAboutStudentResubmission(currentUser.id, values, existingApplication.status);
     }
   } catch {
     await deleteStoredFiles(newlySavedFilePaths);
@@ -547,7 +724,9 @@ export async function saveInternshipApplication(
   revalidatePath("/intern/manage-users");
   revalidatePath(`/intern/manage-users/${currentUser.id}`);
 
-  redirect("/intern/profile");
+  await clearStudentApplicationDraft();
+
+  redirect("/intern/application");
 }
 
 export async function deleteStudentAttachment(
@@ -617,6 +796,7 @@ export async function deleteStudentAttachment(
           attachment.application.status === INTERNSHIP_APPLICATION_STATUSES.Pending
             ? attachment.application.status
             : INTERNSHIP_APPLICATION_STATUSES.Pending,
+        rejectionReason: null,
         approvedAt: attachment.application.status === INTERNSHIP_APPLICATION_STATUSES.Pending ? undefined : null,
         finishedAt: null,
         editedAfterApprovalAt:

@@ -23,6 +23,7 @@ export const STUDENT_STATUS_FILTERS = {
   Pending: "pending",
   Rejected: "rejected",
   Ongoing: "on-going",
+  NeedsFollowUp: "needs-follow-up",
   Finished: "finished",
 } as const;
 
@@ -34,6 +35,7 @@ export const studentStatusFilterOrder: StudentStatusFilter[] = [
   STUDENT_STATUS_FILTERS.Pending,
   STUDENT_STATUS_FILTERS.Rejected,
   STUDENT_STATUS_FILTERS.Ongoing,
+  STUDENT_STATUS_FILTERS.NeedsFollowUp,
   STUDENT_STATUS_FILTERS.Finished,
 ];
 
@@ -49,14 +51,14 @@ export const studentStatusFilterMeta: Record<
   all: {
     label: "ทั้งหมด",
     emptyStateLabel: "ทั้งหมด",
-    badgeClassName: "border-slate-200 bg-slate-50 text-slate-700",
-    pillClassName: "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+    badgeClassName: "border-sky-200 bg-sky-50 text-sky-800",
+    pillClassName: "border-sky-200 bg-white text-sky-800 hover:border-sky-300 hover:bg-sky-50",
   },
   "no-application": {
     label: "ยังไม่มีใบสมัคร",
     emptyStateLabel: "ยังไม่มีใบสมัคร",
-    badgeClassName: "border-slate-200 bg-slate-50 text-slate-700",
-    pillClassName: "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+    badgeClassName: "border-amber-200 bg-amber-50 text-amber-800",
+    pillClassName: "border-amber-200 bg-white text-amber-800 hover:border-amber-300 hover:bg-amber-50",
   },
   pending: {
     label: "รอตรวจสอบ",
@@ -80,9 +82,15 @@ export const studentStatusFilterMeta: Record<
     pillClassName:
       "border-[rgba(142,85,183,0.2)] bg-white text-[color:var(--color-brand-violet-deep)] hover:bg-[rgba(142,85,183,0.08)]",
   },
+  "needs-follow-up": {
+    label: "ต้องติดตาม",
+    emptyStateLabel: "ต้องติดตาม",
+    badgeClassName: "border-orange-200 bg-orange-50 text-orange-800",
+    pillClassName: "border-orange-200 bg-white text-orange-800 hover:border-orange-300 hover:bg-orange-50",
+  },
   finished: {
-    label: "เสร็จสิ้น",
-    emptyStateLabel: "เสร็จสิ้น",
+    label: "ฝึกงานเสร็จสิ้น",
+    emptyStateLabel: "ฝึกงานเสร็จสิ้น",
     badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
     pillClassName: "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50",
   },
@@ -112,6 +120,7 @@ export const internshipApplicationSelect = {
   emergencyContactRelationship: true,
   emergencyContactPhoneNumber: true,
   notes: true,
+  rejectionReason: true,
   status: true,
   approvedAt: true,
   finishedAt: true,
@@ -148,25 +157,25 @@ export const internshipStatusMeta: Record<
 > = {
   Pending: {
     label: studentStatusFilterMeta.pending.label,
-    description: "รอการอนุมัติจากผู้ดูแลระบบก่อนเริ่มสถานะฝึกงาน",
+    description: "รอผู้ดูแลตรวจสอบ",
     badgeClassName: studentStatusFilterMeta.pending.badgeClassName,
     headerBadgeClassName: studentStatusFilterMeta.pending.pillClassName,
   },
   Rejected: {
     label: studentStatusFilterMeta.rejected.label,
-    description: "แบบฟอร์มนี้ถูกปฏิเสธแล้ว นักศึกษาสามารถแก้ไขข้อมูลและส่งกลับเข้ารอตรวจสอบใหม่ได้",
+    description: "ถูกส่งกลับให้แก้ไข",
     badgeClassName: studentStatusFilterMeta.rejected.badgeClassName,
     headerBadgeClassName: studentStatusFilterMeta.rejected.pillClassName,
   },
   Ongoing: {
     label: studentStatusFilterMeta["on-going"].label,
-    description: "แบบฟอร์มได้รับการอนุมัติและอยู่ในช่วงฝึกงาน",
+    description: "อนุมัติแล้วและอยู่ระหว่างฝึกงาน",
     badgeClassName: studentStatusFilterMeta["on-going"].badgeClassName,
     headerBadgeClassName: studentStatusFilterMeta["on-going"].pillClassName,
   },
   Finished: {
     label: studentStatusFilterMeta.finished.label,
-    description: "ผู้ดูแลระบบปิดสถานะฝึกงานแล้ว จึงปิดการแก้ไขข้อมูลอัตโนมัติ",
+    description: "ปิดสถานะแล้วและล็อกการแก้ไข",
     badgeClassName: studentStatusFilterMeta.finished.badgeClassName,
     headerBadgeClassName: studentStatusFilterMeta.finished.pillClassName,
   },
@@ -221,6 +230,21 @@ export function getStudentStatusFilterForApplication(
   }
 
   return STUDENT_STATUS_FILTERS.Finished;
+}
+
+export function matchesStudentStatusFilter(
+  application: Pick<InternshipApplicationRecord, "status" | "editedAfterApprovalAt"> | null,
+  filter: StudentStatusFilter,
+) {
+  if (filter === STUDENT_STATUS_FILTERS.All) {
+    return true;
+  }
+
+  if (filter === STUDENT_STATUS_FILTERS.NeedsFollowUp) {
+    return wasEditedAfterApproval(application);
+  }
+
+  return getStudentStatusFilterForApplication(application) === filter;
 }
 
 export function getInternshipStatus(
@@ -302,9 +326,9 @@ export function getStatusChangeConfirmationContent(
   }
 
   return {
-    title: "ยืนยันการเปลี่ยนสถานะเป็นเสร็จสิ้น",
+    title: "ยืนยันการเปลี่ยนสถานะเป็นฝึกงานเสร็จสิ้น",
     description:
-      "การเปลี่ยนสถานะเป็นเสร็จสิ้นจะบันทึกเวลาเสร็จสิ้น ล้างธงต้องติดตาม และล็อกการแก้ไขข้อมูลของนักศึกษาจนกว่าจะมีผู้ดูแลเปิดสถานะใหม่อีกครั้ง",
-    confirmLabel: "ยืนยันการเสร็จสิ้น",
+      "การเปลี่ยนสถานะเป็นฝึกงานเสร็จสิ้นจะบันทึกเวลาเสร็จสิ้น ล้างธงต้องติดตาม และล็อกการแก้ไขข้อมูลของนักศึกษาจนกว่าจะมีผู้ดูแลเปิดสถานะใหม่อีกครั้ง",
+    confirmLabel: "ยืนยันฝึกงานเสร็จสิ้น",
   };
 }

@@ -81,10 +81,6 @@ export function getAdminTelegramChatId() {
   return getEnvValue("TELEGRAM_ADMIN_CHAT_ID");
 }
 
-export function getStudentTelegramChatId() {
-  return getEnvValue("TELEGRAM_STUDENT_CHAT_ID");
-}
-
 export async function sendTelegramMessage(payload: TelegramNotificationPayload) {
   const botToken = getEnvValue("TELEGRAM_BOT_TOKEN");
 
